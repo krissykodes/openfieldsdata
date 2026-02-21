@@ -1,0 +1,662 @@
+/* components/CropView.module.css */
+/* Glassmorphic dark-mode CropView dashboard */
+
+.root {
+	position: relative;
+	width: 100%;
+	height: 100vh;
+	overflow: hidden;
+	font-family:
+		"Outfit",
+		-apple-system,
+		sans-serif;
+	color: rgba(255, 255, 255, 0.92);
+	background: #000;
+}
+.glass {
+	background: rgba(28, 28, 30, 0.72);
+	backdrop-filter: blur(40px) saturate(1.8);
+	-webkit-backdrop-filter: blur(40px) saturate(1.8);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 16px;
+}
+
+/* Loader */
+.loader {
+	position: absolute;
+	inset: 0;
+	z-index: 999;
+	background: rgba(0, 0, 0, 0.85);
+	backdrop-filter: blur(20px);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 20px;
+	transition: opacity 0.6s;
+}
+.spinner {
+	width: 40px;
+	height: 40px;
+	border: 3px solid rgba(255, 255, 255, 0.1);
+	border-top-color: #34c759;
+	border-radius: 50%;
+	animation: cvspin 0.8s linear infinite;
+}
+@keyframes cvspin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+.loaderText {
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.55);
+	letter-spacing: 0.3px;
+}
+.loaderSub {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.3);
+	margin-top: -12px;
+}
+
+/* Search */
+.search {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.modeToggle {
+	display: flex;
+	padding: 3px;
+	border-radius: 12px;
+	gap: 2px;
+	width: fit-content;
+}
+.modeBtn {
+	padding: 6px 14px;
+	border-radius: 10px;
+	border: none;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.3);
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+	white-space: nowrap;
+}
+.modeBtn:hover {
+	color: rgba(255, 255, 255, 0.55);
+}
+.modeBtn.on {
+	background: rgba(255, 255, 255, 0.1);
+	color: rgba(255, 255, 255, 0.92);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.locRow {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.select {
+	padding: 8px 32px 8px 12px;
+	background: rgba(28, 28, 30, 0.72);
+	backdrop-filter: blur(40px);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 10px;
+	color: rgba(255, 255, 255, 0.92);
+	font-family: inherit;
+	font-size: 13px;
+	cursor: pointer;
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='rgba(255,255,255,0.4)' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+.select:focus {
+	outline: none;
+	border-color: rgba(255, 255, 255, 0.2);
+}
+.select option {
+	background: #1c1c1e;
+	color: rgba(255, 255, 255, 0.92);
+}
+
+.inputWrap {
+	position: relative;
+}
+.countyInput,
+.addrInput {
+	padding: 8px 12px;
+	background: rgba(28, 28, 30, 0.72);
+	backdrop-filter: blur(40px);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 10px;
+	color: rgba(255, 255, 255, 0.92);
+	font-family: inherit;
+	font-size: 13px;
+	transition:
+		border-color 0.2s,
+		width 0.3s;
+}
+.countyInput {
+	width: 180px;
+}
+.countyInput:focus {
+	outline: none;
+	border-color: rgba(255, 255, 255, 0.2);
+	width: 220px;
+}
+.addrInput {
+	width: 320px;
+}
+.addrInput:focus {
+	outline: none;
+	border-color: rgba(255, 255, 255, 0.2);
+	width: 380px;
+}
+.countyInput::placeholder,
+.addrInput::placeholder {
+	color: rgba(255, 255, 255, 0.3);
+}
+.countyInput:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.sug {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	min-width: 240px;
+	max-height: 220px;
+	overflow-y: auto;
+	z-index: 50;
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+	padding: 4px;
+}
+.sugWide {
+	min-width: 360px;
+}
+.sugItem {
+	padding: 9px 12px;
+	cursor: pointer;
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.55);
+	border-radius: 8px;
+	margin: 2px 0;
+	transition: background 0.1s;
+}
+.sugItem:hover,
+.sugActive {
+	background: rgba(255, 255, 255, 0.06);
+	color: rgba(255, 255, 255, 0.92);
+}
+.sugSub {
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.3);
+	margin-top: 1px;
+}
+
+/* Clear button */
+.clearBtn {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(0, 0, 0, 0.733);
+	color: rgba(255, 255, 255, 0.4);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	transition: all 0.15s;
+}
+.clearBtn:hover {
+	background: rgba(255, 60, 60, 0.846);
+	color: rgb(255, 1, 1);
+}
+.clearBtn svg {
+	width: 14px;
+	height: 14px;
+  color: #fff;
+}
+
+/* Badge */
+.badge {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	padding: 6px 16px;
+	font-size: 12px;
+	font-weight: 500;
+	color: #34c759;
+	white-space: nowrap;
+	border: 1px solid rgba(52, 199, 89, 0.25);
+	background: rgba(52, 199, 89, 0.08);
+	backdrop-filter: blur(30px);
+	border-radius: 20px;
+}
+
+/* Gear + Settings */
+.gear {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	z-index: 10;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(28, 28, 30, 0.72);
+	backdrop-filter: blur(40px);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.55);
+	transition: all 0.2s;
+}
+.gear:hover {
+	color: rgba(255, 255, 255, 0.92);
+	background: rgba(44, 44, 46, 0.8);
+}
+.gear svg {
+	width: 18px;
+	height: 18px;
+}
+
+.settings {
+	position: absolute;
+	top: 60px;
+	right: 16px;
+	z-index: 10;
+	padding: 16px;
+	min-width: 220px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+.sGroup {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.sLabel {
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, 0.3);
+}
+.sRow {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+.chip {
+	padding: 5px 10px;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: transparent;
+	color: rgba(255, 255, 255, 0.55);
+	font-size: 11px;
+	font-family: inherit;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+.chip:hover {
+	border-color: rgba(255, 255, 255, 0.15);
+	color: rgba(255, 255, 255, 0.92);
+}
+.chip.on {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.2);
+	color: rgba(255, 255, 255, 0.92);
+}
+.slider {
+	-webkit-appearance: none;
+	width: 100%;
+	height: 3px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 2px;
+	outline: none;
+}
+.slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 14px;
+	height: 14px;
+	background: #fff;
+	border-radius: 50%;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Year Bar */
+.yearbar {
+	position: absolute;
+	bottom: 28px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	padding: 14px 24px 14px 20px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	min-width: 480px;
+}
+.yrNum {
+	font-size: 22px;
+	font-weight: 600;
+	min-width: 52px;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+.yrWrap {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.yrTrack {
+	position: relative;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 2px;
+	cursor: pointer;
+}
+.yrFill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	background: #34c759;
+	border-radius: 2px;
+	transition: width 0.15s;
+}
+.yrThumb {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 16px;
+	height: 16px;
+	background: #fff;
+	border-radius: 50%;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	cursor: grab;
+	transition: left 0.15s;
+	z-index: 2;
+	pointer-events: none;
+}
+.yrTicks {
+	display: flex;
+	justify-content: space-between;
+	padding: 0 1px;
+}
+.yrTick {
+	font-size: 9px;
+	color: rgba(255, 255, 255, 0.3);
+	cursor: pointer;
+	user-select: none;
+}
+.yrTick:hover {
+	color: rgba(255, 255, 255, 0.55);
+}
+.yrTick.on {
+	color: #34c759;
+	font-weight: 500;
+}
+
+.play {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(255, 255, 255, 0.1);
+	color: rgba(255, 255, 255, 0.92);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s;
+	flex-shrink: 0;
+}
+.play:hover {
+	background: rgba(255, 255, 255, 0.18);
+}
+.play.on {
+	background: #34c759;
+	color: #000;
+}
+.play svg {
+	width: 14px;
+	height: 14px;
+}
+
+.yrStats {
+	position: absolute;
+	bottom: 90px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	padding: 8px 16px;
+	display: flex;
+	gap: 20px;
+}
+.st {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+}
+.stV {
+	font-size: 13px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.stL {
+	font-size: 9px;
+	color: rgba(255, 255, 255, 0.3);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Legend */
+.legend {
+	position: absolute;
+	bottom: 28px;
+	left: 16px;
+	z-index: 10;
+	padding: 10px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.lg {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.55);
+}
+.lgDot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* Popup */
+.popup {
+	position: absolute;
+	z-index: 200;
+	min-width: 280px;
+	max-width: 340px;
+	overflow: hidden;
+	box-shadow:
+		0 20px 60px rgba(0, 0, 0, 0.5),
+		0 0 0 0.5px rgba(255, 255, 255, 0.06);
+}
+.popHead {
+	padding: 16px 16px 10px;
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+}
+.popName {
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+.popYr {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.55);
+	margin-top: 2px;
+}
+.popX {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	border: none;
+	background: rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.55);
+	font-size: 12px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+.popX:hover {
+	background: rgba(255, 255, 255, 0.15);
+	color: rgba(255, 255, 255, 0.92);
+}
+.popBody {
+	padding: 0 16px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.popRow {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+.popK {
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.55);
+}
+.popV {
+	font-size: 12px;
+	font-weight: 500;
+}
+.popFid {
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.3);
+	text-align: right;
+}
+.popDiv {
+	height: 1px;
+	background: rgba(255, 255, 255, 0.08);
+	margin: 0 16px;
+}
+.popRot {
+	padding: 10px 16px 14px;
+}
+.popRotLabel {
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.8px;
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, 0.3);
+	margin-bottom: 8px;
+}
+.rotTl {
+	display: flex;
+	gap: 3px;
+}
+.rotC {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	padding: 5px 2px;
+	border-radius: 6px;
+}
+.rotC.now {
+	background: rgba(255, 255, 255, 0.06);
+}
+.rotYr {
+	font-size: 9px;
+	color: rgba(255, 255, 255, 0.3);
+}
+.rotCr {
+	font-size: 9px;
+	font-weight: 500;
+	text-align: center;
+	line-height: 1.1;
+}
+.rotDot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+}
+
+/* Year thumb hover + drag */
+.yrThumb:hover {
+	transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* MapLibre controls — match dark glass theme */
+.root :global(.maplibregl-ctrl-group) {
+	background: rgba(28, 28, 30, 0.72) !important;
+	backdrop-filter: blur(40px) !important;
+	-webkit-backdrop-filter: blur(40px) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+}
+.root :global(.maplibregl-ctrl-group button + button) {
+	border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.root :global(.maplibregl-ctrl-group button:hover) {
+	background: rgba(255, 255, 255, 0.06) !important;
+}
+.root :global(.maplibregl-ctrl-group button .maplibregl-ctrl-icon) {
+	filter: invert(1);
+}
+
+@media (max-width: 640px) {
+	.yearbar {
+		min-width: auto;
+		left: 12px;
+		right: 12px;
+		transform: none;
+	}
+	.search {
+		right: 60px;
+	}
+	.countyInput {
+		width: 140px;
+	}
+	.addrInput {
+		width: 200px;
+	}
+	.legend {
+		display: none;
+	}
+	.badge {
+		display: none !important;
+	}
+}
