@@ -26,8 +26,17 @@ const BASEMAP_OPTIONS = [
 
 const INITIAL_VIEW = { longitude: -95.7, latitude: 39.8, zoom: 4 };
 
+function useIsMobile(breakpoint = 640) {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    setMobile(window.innerWidth <= breakpoint);
+  }, [breakpoint]);
+  return mobile;
+}
+
 export default function CropViewMapbox() {
   const cv = useCropView();
+  const isMobile = useIsMobile();
   const [basemap, setBasemap] = useState<string>("satellite");
   const [viewState, setViewState] = useState<Record<string, any>>(INITIAL_VIEW);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -74,14 +83,9 @@ export default function CropViewMapbox() {
   }, [layers, cv.mapRef]);
 
   const handleMoveEnd = useCallback(() => {
-    if (overlayRef.current) {
-      overlayRef.current.setProps({ layers: layersRef.current });
-    }
-    const mapInstance = cv.mapRef.current;
-    const rawMap = mapInstance?.getMap ? mapInstance.getMap() : mapInstance;
-    rawMap?.triggerRepaint?.();
+    // bump() in handleMoveEnd triggers layerVersion change → useEffect syncs layers
     cv.handleMoveEnd();
-  }, [cv.handleMoveEnd, cv.mapRef]);
+  }, [cv.handleMoveEnd]);
 
   // Clear overlay ref when basemap changes (old Map unmounts)
   useEffect(() => {
@@ -108,7 +112,7 @@ export default function CropViewMapbox() {
         onLoad={handleLoad}
         onClick={cv.handleMapClick}
         onMoveEnd={handleMoveEnd}
-        antialias
+        antialias={!isMobile}
       >
         <NavigationControl showCompass={false} position="bottom-right" />
       </Map>

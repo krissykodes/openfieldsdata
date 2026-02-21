@@ -65,16 +65,21 @@ interface CropViewUIProps {
 function usePopupPosition(popup: PopupData | null) {
   const popupW = 310;
   const popupH = 280;
-  if (!popup) return { left: 0, top: 0 };
+  if (!popup) return { left: 0, top: 0, isMobile: false };
   const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const isMobile = vw <= 640;
+  if (isMobile) {
+    // On mobile, popup is full-width via CSS; just position above the year bar
+    return { left: 0, top: vh - popupH - 120, isMobile };
+  }
   const left = Math.max(10, Math.min(popup.x - 140, vw - popupW - 10));
   // Try above click point first; flip below if it would overflow the top
   let top = popup.y - popupH - 16;
   if (top < 10) top = popup.y + 20;
   // Clamp bottom edge
   if (top + popupH > vh - 10) top = vh - popupH - 10;
-  return { left, top };
+  return { left, top, isMobile };
 }
 
 export default function CropViewUI(props: CropViewUIProps) {
@@ -356,7 +361,7 @@ export default function CropViewUI(props: CropViewUIProps) {
 
       {/* Popup */}
       {popup && (
-        <div className={`${s.popup} ${s.glass}`} style={{ left: popupPos.left, top: popupPos.top }}>
+        <div className={`${s.popup} ${s.glass}`} style={popupPos.isMobile ? { top: popupPos.top } : { left: popupPos.left, top: popupPos.top }}>
           <div className={s.popHead}>
             <div>
               <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name}</div>

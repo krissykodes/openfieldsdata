@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const url = `${UPSTREAM}/${z}/${x}/${y}?dtype_out_vector=mvt`;
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
       return new NextResponse(null, { status: res.status });
     }
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/vnd.mapbox-vector-tile",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
       },
     });
   } catch {
