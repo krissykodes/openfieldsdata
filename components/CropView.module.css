@@ -505,25 +505,26 @@
 	min-width: 280px;
 	max-width: 340px;
 	overflow: hidden;
+	pointer-events: none;
 	box-shadow:
 		0 20px 60px rgba(0, 0, 0, 0.5),
 		0 0 0 0.5px rgba(255, 255, 255, 0.06);
 }
 .popHead {
-	padding: 16px 16px 10px;
+	padding: 12px 16px 6px;
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
 }
 .popName {
-	font-size: 18px;
+	font-size: 15px;
 	font-weight: 600;
-	line-height: 1.2;
+	line-height: 1.3;
 }
 .popYr {
 	font-size: 11px;
-	color: rgba(255, 255, 255, 0.55);
-	margin-top: 2px;
+	color: rgba(255, 255, 255, 0.4);
+	font-weight: 400;
 }
 .popX {
 	width: 24px;
@@ -544,10 +545,10 @@
 	color: rgba(255, 255, 255, 0.92);
 }
 .popBody {
-	padding: 0 16px 12px;
+	padding: 0 16px 8px;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 4px;
 }
 .popRow {
 	display: flex;
@@ -573,7 +574,7 @@
 	margin: 0 16px;
 }
 .popRot {
-	padding: 10px 16px 14px;
+	padding: 12px 16px 16px;
 }
 .popRotLabel {
 	font-size: 9px;
@@ -581,38 +582,50 @@
 	letter-spacing: 0.8px;
 	text-transform: uppercase;
 	color: rgba(255, 255, 255, 0.3);
-	margin-bottom: 8px;
+	margin-bottom: 10px;
 }
 .rotTl {
 	display: flex;
-	gap: 3px;
+	gap: 2px;
 }
 .rotC {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 3px;
-	padding: 5px 2px;
-	border-radius: 6px;
+	gap: 4px;
+	padding: 8px 3px;
+	border-radius: 8px;
+	transition: background 0.15s;
 }
 .rotC.now {
-	background: rgba(255, 255, 255, 0.06);
+	background: rgba(255, 255, 255, 0.1);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .rotYr {
-	font-size: 9px;
-	color: rgba(255, 255, 255, 0.3);
+	font-size: 10px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.4);
+}
+.rotC.now .rotYr {
+	color: rgba(255, 255, 255, 0.9);
 }
 .rotCr {
-	font-size: 9px;
-	font-weight: 500;
+	font-size: 10px;
+	font-weight: 600;
 	text-align: center;
 	line-height: 1.1;
 }
 .rotDot {
-	width: 6px;
-	height: 6px;
+	width: 14px;
+	height: 14px;
 	border-radius: 50%;
+	box-shadow: 0 0 6px currentColor;
+}
+.rotC.now .rotDot {
+	width: 18px;
+	height: 18px;
+	box-shadow: 0 0 10px currentColor;
 }
 
 /* Year thumb hover + drag */

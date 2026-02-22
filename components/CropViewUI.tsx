@@ -269,7 +269,7 @@ export default function CropViewUI(props: CropViewUIProps) {
       </div>
 
       {/* County Badge */}
-      {badge && <div className={s.badge}>{badge}</div>}
+      {/* {badge && <div className={s.badge}>{badge}</div>} */}
 
       {/* Gear */}
       <button ref={gearRef} className={s.gear} onClick={() => setSettingsOpen(!settingsOpen)}><GearIcon /></button>
@@ -364,15 +364,15 @@ export default function CropViewUI(props: CropViewUIProps) {
         <div className={`${s.popup} ${s.glass}`} style={popupPos.isMobile ? { top: popupPos.top } : { left: popupPos.left, top: popupPos.top }}>
           <div className={s.popHead}>
             <div>
-              <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name}</div>
-              <div className={s.popYr}>{popup.currentYear} growing season</div>
+              <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name} - <span className={s.popYr}>{popup.currentYear} growing season</span></div>
             </div>
-            <button className={s.popX} onClick={() => setPopup(null)}>✕</button>
           </div>
           <div className={s.popBody}>
-            <div className={s.popRow}><span className={s.popK}>Size</span><span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} ac</span></div>
-            <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div>
-            <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div>
+            <div className={s.popRow}>
+              {/* <span className={s.popK}>Size</span> */}
+            <span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} acres</span></div>
+            {/* <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div> */}
+            {/* <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div> */}
             {popup.csbid && <div className={s.popFid}>{popup.csbid}</div>}
           </div>
           <div className={s.popDiv} />
@@ -382,7 +382,7 @@ export default function CropViewUI(props: CropViewUIProps) {
               {popup.rotation.map((r) => (
                 <div key={r.year} className={`${s.rotC} ${r.year === popup.currentYear ? s.now : ""}`}>
                   <span className={s.rotYr}>&apos;{String(r.year).slice(2)}</span>
-                  <div className={s.rotDot} style={{ background: `rgb(${r.color.join(",")})` }} />
+                  <div className={s.rotDot} style={{ background: `rgb(${r.color.join(",")})`, color: `rgb(${r.color.join(",")})` }} />
                   <span className={s.rotCr} style={{ color: `rgb(${r.color.join(",")})` }}>{r.name.split(" ")[0].slice(0, 4)}</span>
                 </div>
               ))}

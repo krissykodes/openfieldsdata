@@ -81,8 +81,8 @@ export function useCropView() {
   const [yearToast, setYearToast] = useState(false);
   const [countyStats, setCountyStats] = useState<CountyStats | null>(null);
 
-  // Ref to prevent map onClick from closing a popup that deck onClick just opened
-  const deckClickedRef = useRef(false);
+  // Suppress search after picking a suggestion
+  const pickedRef = useRef(false);
 
   // Mutable refs (deck callbacks capture stale closures otherwise)
   const hoveredRef = useRef<string | null>(null);
@@ -264,42 +264,39 @@ export function useCropView() {
         if (nid !== hoveredRef.current) {
           hoveredRef.current = nid;
           bumpHover();
-        }
-      },
 
-      onClick: (info: any) => {
-        if (!info.object) {
-          setPopup(null);
-          return;
+          if (!info.object) {
+            setPopup(null);
+            return;
+          }
+          const p = info.object.properties;
+          const code = p[`CDL${yearRef.current}`] || p.CDL2023;
+          const rotation = (YEARS as readonly number[])
+            .map((yr) => {
+              const c = p[`CDL${yr}`];
+              return c != null
+                ? {
+                    year: yr,
+                    code: c,
+                    name: getCropName(c),
+                    color: getCropColor(c),
+                  }
+                : null;
+            })
+            .filter(Boolean) as PopupData["rotation"];
+          setPopup({
+            x: info.x,
+            y: info.y,
+            name: getCropName(code),
+            color: getCropColor(code),
+            acres: p.CSBACRES,
+            county: p.CNTY,
+            stateFips: p.STATEFIPS,
+            csbid: p.CSBID,
+            rotation,
+            currentYear: yearRef.current,
+          });
         }
-        deckClickedRef.current = true;
-        const p = info.object.properties;
-        const code = p[`CDL${yearRef.current}`] || p.CDL2023;
-        const rotation = (YEARS as readonly number[])
-          .map((yr) => {
-            const c = p[`CDL${yr}`];
-            return c != null
-              ? {
-                  year: yr,
-                  code: c,
-                  name: getCropName(c),
-                  color: getCropColor(c),
-                }
-              : null;
-          })
-          .filter(Boolean) as PopupData["rotation"];
-        setPopup({
-          x: info.x,
-          y: info.y,
-          name: getCropName(code),
-          color: getCropColor(code),
-          acres: p.CSBACRES,
-          county: p.CNTY,
-          stateFips: p.STATEFIPS,
-          csbid: p.CSBID,
-          rotation,
-          currentYear: yearRef.current,
-        });
       },
 
       onViewportLoad: (tiles: any[]) => {
@@ -357,12 +354,8 @@ export function useCropView() {
     bump();
   }, [bump]);
 
-  // ── Map click handler (closes popup if deck didn't handle the click) ──
+  // ── Map click handler ──
   const handleMapClick = useCallback(() => {
-    if (deckClickedRef.current) {
-      deckClickedRef.current = false;
-      return;
-    }
     setPopup(null);
   }, []);
 
@@ -385,6 +378,7 @@ export function useCropView() {
 
   // ── County search debounce ──
   useEffect(() => {
+    if (pickedRef.current) { pickedRef.current = false; return; }
     if (countyText.length < 2 || !selectedStateFips) {
       setCountySugs([]);
       return;
@@ -406,6 +400,7 @@ export function useCropView() {
 
   // ── Address search debounce ──
   useEffect(() => {
+    if (pickedRef.current) { pickedRef.current = false; return; }
     if (addrText.length < 3) {
       setAddrSugs([]);
       return;
@@ -435,6 +430,7 @@ export function useCropView() {
   // ── Suggestion pickers ──
   const pickCounty = useCallback(
     (ft: any) => {
+      pickedRef.current = true;
       setCountyText(ft.text);
       setCountySugs([]);
       // Select county FIRST so countyRef is updated before syncOverlay runs
@@ -453,6 +449,7 @@ export function useCropView() {
 
   const pickAddr = useCallback(
     (ft: any) => {
+      pickedRef.current = true;
       setAddrText(ft.place_name);
       setAddrSugs([]);
       if (ft.bbox) flyToBounds(ft.bbox);
