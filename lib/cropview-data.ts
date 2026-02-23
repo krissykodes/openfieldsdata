@@ -7,7 +7,7 @@ export const DEFAULT_COUNTY = "Lyon";
 export const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023] as const;
 
 export const CROP_NAMES: Record<number, string> = {
-  1: "Corn", 5: "Soy", 21: "Barley", 23: "Spring Wheat", 24: "Winter Wheat",
+  1: "Corn", 2: "Cotton", 4: "Sorghum", 5: "Soy", 21: "Barley", 23: "Spring Wheat", 24: "Winter Wheat",
   28: "Oats", 36: "Alfalfa", 37: "Hay", 41: "Sugarbeets", 42: "Dry Beans",
   61: "Fallow/Idle", 69: "Grapes", 111: "Open Water", 121: "Developed",
   141: "Forest", 152: "Shrubland", 176: "Grassland", 190: "Woody Wetlands",
@@ -15,17 +15,42 @@ export const CROP_NAMES: Record<number, string> = {
 };
 
 export const CROP_COLORS: Record<number, [number, number, number]> = {
-  1: [240, 180, 41], 5: [56, 193, 114], 21: [190, 170, 120], 23: [220, 190, 100],
-  24: [212, 165, 100], 28: [180, 210, 140], 36: [77, 166, 255], 37: [120, 200, 180],
-  41: [200, 100, 150], 42: [170, 130, 90], 61: [160, 160, 140], 69: [140, 80, 160],
-  111: [60, 100, 180], 121: [200, 80, 80], 141: [40, 140, 60], 152: [180, 170, 100],
-  176: [150, 190, 120], 190: [60, 130, 100], 195: [100, 170, 140],
+  1: [240, 180, 41], 2: [230, 210, 160], 4: [200, 130, 45], 5: [56, 193, 114],
+  21: [190, 170, 120], 23: [220, 190, 100], 24: [212, 165, 100], 28: [180, 210, 140],
+  36: [77, 166, 255], 37: [120, 200, 180], 41: [200, 100, 150], 42: [170, 130, 90],
+  61: [160, 160, 140], 69: [140, 80, 160], 111: [60, 100, 180], 121: [200, 80, 80],
+  141: [40, 140, 60], 152: [180, 170, 100], 176: [150, 190, 120], 190: [60, 130, 100],
+  195: [100, 170, 140],
 };
 
 const PALETTE = ["#fffbe5", "#fed98a", "#fdbb2d", "#f59e0b", "#d97706", "#b45309"];
 
+export const CROP_SHORT: Record<number, string> = {
+  1: "Corn", 2: "Cott", 4: "Srghm", 5: "Soy", 21: "Barley", 23: "S.Wht", 24: "W.Wht",
+  28: "Oats", 36: "Alflf", 37: "Hay", 41: "Beets", 42: "Beans",
+  61: "Falw", 69: "Grpe", 111: "Water", 121: "Dev",
+  141: "Forst", 152: "Shrub", 176: "Grass", 190: "W.Wet",
+  195: "H.Wet",
+};
+
+/** Parse "lat, lng" or "lat lng" input. Returns null if not valid coordinates. */
+export function parseCoords(text: string): { lat: number; lng: number } | null {
+  const m = text.trim().match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const a = parseFloat(m[1]);
+  const b = parseFloat(m[2]);
+  if (a >= -90 && a <= 90 && b >= -180 && b <= 180) return { lat: a, lng: b };
+  // Try swapped (lng, lat)
+  if (b >= -90 && b <= 90 && a >= -180 && a <= 180) return { lat: b, lng: a };
+  return null;
+}
+
 export function getCropName(c: number) {
   return CROP_NAMES[c] || `Crop ${c}`;
+}
+
+export function getCropShort(c: number) {
+  return CROP_SHORT[c] || `C${c}`;
 }
 
 export function getCropColor(c: number): [number, number, number] {

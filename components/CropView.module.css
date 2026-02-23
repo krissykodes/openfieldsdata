@@ -545,7 +545,7 @@
 	color: rgba(255, 255, 255, 0.92);
 }
 .popBody {
-	padding: 0 16px 8px;
+	padding: 12px 16px 16px;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
@@ -561,6 +561,7 @@
 }
 .popV {
 	font-size: 12px;
+		color: rgba(255, 255, 255, 0.3);
 	font-weight: 500;
 }
 .popFid {
@@ -577,12 +578,12 @@
 	padding: 12px 16px 16px;
 }
 .popRotLabel {
-	font-size: 9px;
+	font-size: 16px;
 	font-weight: 600;
 	letter-spacing: 0.8px;
 	text-transform: uppercase;
-	color: rgba(255, 255, 255, 0.3);
-	margin-bottom: 10px;
+	color: rgba(255, 255, 255, 0.94);
+	margin-bottom: 5px;
 }
 .rotTl {
 	display: flex;
