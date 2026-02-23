@@ -13,6 +13,7 @@ import {
   stateMap,
   stateByName,
   geocode,
+  parseCoords,
   type PopupData,
   type CountyStats,
 } from "./cropview-data";
@@ -171,11 +172,7 @@ export function useCropView() {
         if (st) selectCounty(cn, st.f);
         if (ft.bbox) flyToBounds(ft.bbox);
         else if (ft.center)
-          mapRef.current?.flyTo({
-            center: ft.center,
-            zoom: 10,
-            duration: 1200,
-          });
+          mapRef.current?.flyTo({ center: ft.center, zoom: 10, duration: 1200 });
       }
     },
     [flyToBounds, selectCounty]
@@ -185,6 +182,7 @@ export function useCropView() {
   const handleMapLoad = useCallback(async () => {
     const st = stateByName[DEFAULT_STATE.toLowerCase()];
     if (st && DEFAULT_COUNTY) {
+      pickedRef.current = true; // suppress search suggestions on initial load
       setSelectedStateFips(st.f);
       setCountyText(DEFAULT_COUNTY);
       await geocodeAndFlyToCounty(DEFAULT_COUNTY, st.n);
@@ -405,6 +403,17 @@ export function useCropView() {
       setAddrSugs([]);
       return;
     }
+    // Coordinate shortcut — no geocode needed
+    const coords = parseCoords(addrText);
+    if (coords) {
+      setAddrSugs([{
+        id: "__coords__",
+        place_name: `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`,
+        center: [coords.lng, coords.lat],
+        isCoord: true,
+      }]);
+      return;
+    }
     const t = setTimeout(async () => {
       setAddrSugs(await geocode(addrText, undefined, 6));
     }, 300);
@@ -438,11 +447,7 @@ export function useCropView() {
       if (st) selectCounty(ft.text.replace(" County", "").trim(), st.f);
       if (ft.bbox) flyToBounds(ft.bbox);
       else if (ft.center)
-        mapRef.current?.flyTo({
-          center: ft.center,
-          zoom: 10,
-          duration: 1400,
-        });
+        mapRef.current?.flyTo({ center: ft.center, zoom: 10, duration: 1400 });
     },
     [selectedStateFips, selectCounty, flyToBounds]
   );
@@ -452,6 +457,7 @@ export function useCropView() {
       pickedRef.current = true;
       setAddrText(ft.place_name);
       setAddrSugs([]);
+      selectCounty(null, null);
       if (ft.bbox) flyToBounds(ft.bbox);
       else if (ft.center)
         mapRef.current?.flyTo({
@@ -460,7 +466,7 @@ export function useCropView() {
           duration: 1400,
         });
     },
-    [flyToBounds]
+    [flyToBounds, selectCounty]
   );
 
   // ── Year controls ──

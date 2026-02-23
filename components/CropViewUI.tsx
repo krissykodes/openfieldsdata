@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState, useCallback } from "react";
-import { STATES, LEGEND_ITEMS, YEARS, stateMap, type PopupData, type CountyStats } from "@/lib/cropview-data";
+import { STATES, LEGEND_ITEMS, YEARS, stateMap, getCropShort, type PopupData, type CountyStats } from "@/lib/cropview-data";
 import { type ColorMode } from "@/lib/use-cropview";
 import s from "./CropView.module.css";
 
@@ -239,11 +239,21 @@ export default function CropViewUI(props: CropViewUIProps) {
                 value={addrText}
                 onChange={(e) => setAddrText(e.target.value)}
                 onKeyDown={handleAddrKeyDown}
-                placeholder="Search address, place, or farm..."
+                placeholder="Address, place, or lat, lng..."
               />
               {addrSugs.length > 0 && (
                 <div className={`${s.sug} ${s.glass} ${s.sugWide}`}>
                   {addrSugs.map((ft: any, i: number) => {
+                    if (ft.isCoord) return (
+                      <div
+                        key="__coords__"
+                        className={`${s.sugItem} ${i === addrIdx ? s.sugActive : ""}`}
+                        onClick={() => pickAddr(ft)}
+                      >
+                        <div>📍 Go to coordinates</div>
+                        <div className={s.sugSub}>{ft.place_name}</div>
+                      </div>
+                    );
                     const pts = ft.place_name.split(",");
                     return (
                       <div
@@ -363,19 +373,11 @@ export default function CropViewUI(props: CropViewUIProps) {
       {popup && (
         <div className={`${s.popup} ${s.glass}`} style={popupPos.isMobile ? { top: popupPos.top } : { left: popupPos.left, top: popupPos.top }}>
           <div className={s.popHead}>
-            <div>
+            {/* <div>
               <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name} - <span className={s.popYr}>{popup.currentYear} growing season</span></div>
-            </div>
+            </div> */}
           </div>
-          <div className={s.popBody}>
-            <div className={s.popRow}>
-              {/* <span className={s.popK}>Size</span> */}
-            <span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} acres</span></div>
-            {/* <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div> */}
-            {/* <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div> */}
-            {popup.csbid && <div className={s.popFid}>{popup.csbid}</div>}
-          </div>
-          <div className={s.popDiv} />
+
           <div className={s.popRot}>
             <div className={s.popRotLabel}>Rotation History</div>
             <div className={s.rotTl}>
@@ -383,11 +385,25 @@ export default function CropViewUI(props: CropViewUIProps) {
                 <div key={r.year} className={`${s.rotC} ${r.year === popup.currentYear ? s.now : ""}`}>
                   <span className={s.rotYr}>&apos;{String(r.year).slice(2)}</span>
                   <div className={s.rotDot} style={{ background: `rgb(${r.color.join(",")})`, color: `rgb(${r.color.join(",")})` }} />
-                  <span className={s.rotCr} style={{ color: `rgb(${r.color.join(",")})` }}>{r.name.split(" ")[0].slice(0, 4)}</span>
+                  <span className={s.rotCr} style={{ color: `rgb(${r.color.join(",")})` }}>{getCropShort(r.code)}</span>
                 </div>
               ))}
             </div>
           </div>
+
+          <div className={s.popDiv} />
+
+          <div className={s.popBody}>
+            <div className={s.popRow}>
+              {/* <span className={s.popK}>Size</span> */}
+              <span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} acres</span>
+              {popup.csbid && <div className={s.popFid}>{popup.csbid}</div>}
+            </div>
+            {/* <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div> */}
+            {/* <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div> */}
+
+          </div>
+
         </div>
       )}
     </div>
