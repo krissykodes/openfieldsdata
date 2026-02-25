@@ -27,23 +27,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | `MAPBOX_TOKEN` | Yes | Geocoding API (county/address search). Server-side only. Get one free at [mapbox.com](https://account.mapbox.com/access-tokens/) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Only for Mapbox variant | Basemap tiles for the Mapbox version (satellite imagery). Not needed for the default MapLibre version. |
 
-## MapLibre vs Mapbox
-
-The app ships with two map components. Switch in `app/cropview/page.tsx`:
-
-```tsx
-// Default — free CARTO basemap tiles, no key needed for map
-import CropViewMapLibre from "@/components/CropViewMapLibre";
-
-// Alternative — satellite imagery, needs Mapbox token
-import CropViewMapbox from "@/components/CropViewMapbox";
-```
-
-| Feature | MapLibre (default) | Mapbox |
-|---------|-------------------|--------|
-| Basemap tiles | Free (CARTO) | Token required |
-| Satellite imagery | ✗ | ✓ |
-| Basemap options | Dark / Light / Voyager | Dark / Satellite / Light |
 
 ## Features
 
