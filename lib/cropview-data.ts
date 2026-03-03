@@ -7,7 +7,6 @@ export const DEFAULT_COUNTY = "Lyon";
 export const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023] as const;
 
 export const CROP_NAMES: Record<number, string> = {
-  0: "Background",
   1: "Corn",
   2: "Cotton",
   3: "Rice",
@@ -266,7 +265,6 @@ export const CROP_NAMES: Record<number, string> = {
 };
 
 export const CROP_COLORS: Record<number, [number, number, number]> = {
-  0: [0, 0, 0],
   1: [255, 212, 0],
   2: [255, 38, 38],
   3: [0, 169, 230],
@@ -527,7 +525,6 @@ export const CROP_COLORS: Record<number, [number, number, number]> = {
 const PALETTE = ["#fffbe5", "#fed98a", "#fdbb2d", "#f59e0b", "#d97706", "#b45309"];
 
 export const CROP_SHORT: Record<number, string> = {
-  0: "Backg",
   1: "Corn",
   2: "Cott",
   3: "Rice",
