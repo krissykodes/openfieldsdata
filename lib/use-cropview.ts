@@ -219,53 +219,67 @@ export function useCropView() {
       return ol;
     };
 
-    const onHover = (info: any) => {
-      const nid = info.object?.properties?.CSBID || null;
-      if (nid !== hoveredRef.current) {
-        hoveredRef.current = nid;
-        bumpHover();
+    // Reduce concurrency and min zoom on mobile to prevent OOM crashes.
+    // Mobile browsers have much less RAM; 6 concurrent ~1.3MB parquet decodes will kill the tab.
+    const mobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent));
 
-        if (!info.object) {
-          setPopup(null);
-          return;
-        }
-        const p = info.object.properties;
-        const code = p[`CDL${yearRef.current}`] || p.CDL2023;
-        const rotation = (YEARS as readonly number[])
-          .map((yr) => {
-            const c = p[`CDL${yr}`];
-            return c != null
-              ? { year: yr, code: c, name: getCropName(c), color: getCropColor(c) }
-              : null;
-          })
-          .filter(Boolean) as PopupData["rotation"];
-        setPopup({
-          x: info.x,
-          y: info.y,
-          name: getCropName(code),
-          color: getCropColor(code),
-          acres: p.CSBACRES,
-          county: p.CNTY,
-          stateFips: p.STATEFIPS,
-          csbid: p.CSBID,
-          rotation,
-          currentYear: yearRef.current,
-        });
+    const showFeaturePopup = (info: any) => {
+      if (!info.object) {
+        hoveredRef.current = null;
+        bumpHover();
+        setPopup(null);
+        return;
       }
+      const nid = info.object.properties?.CSBID || null;
+      hoveredRef.current = nid;
+      bumpHover();
+      const p = info.object.properties;
+      const code = p[`CDL${yearRef.current}`] || p.CDL2023;
+      const rotation = (YEARS as readonly number[])
+        .map((yr) => {
+          const c = p[`CDL${yr}`];
+          return c != null
+            ? { year: yr, code: c, name: getCropName(c), color: getCropColor(c) }
+            : null;
+        })
+        .filter(Boolean) as PopupData["rotation"];
+      setPopup({
+        x: info.x,
+        y: info.y,
+        name: getCropName(code),
+        color: getCropColor(code),
+        acres: p.CSBACRES,
+        county: p.CNTY,
+        stateFips: p.STATEFIPS,
+        csbid: p.CSBID,
+        rotation,
+        currentYear: yearRef.current,
+      });
     };
+
+    const onHover = (info: any) => {
+      if (mobile) return; // touch devices use onClick instead
+      const nid = info.object?.properties?.CSBID || null;
+      if (nid !== hoveredRef.current) showFeaturePopup(info);
+    };
+
+    const onClick = mobile ? (info: any) => showFeaturePopup(info) : undefined;
 
     return new TileLayer({
       id: "csb-tiles",
       data: TILE_URL,
-      minZoom: 7,
+      minZoom: mobile ? 9 : 7,
       maxZoom: 14,
       tileSize: 512,   // 512px tiles = 4× fewer requests than 256px
       zoomOffset: -1,  // request tiles 1 zoom lower → each tile covers 4× more area
-      maxRequests: 6,  // limit concurrent fetches
+      maxRequests: mobile ? 2 : 6,  // mobile: limit concurrent parquet decodes to avoid OOM
       pickable: true,
 
-      // Hover lives on the TileLayer — sublayer onHover is never called by deck.gl
+      // Desktop: hover to show popup. Mobile: tap to show popup.
       onHover,
+      onClick,
 
       // Changing these triggers renderSubLayers to re-run for all loaded tiles
       // without evicting the tile cache (no re-fetch).
