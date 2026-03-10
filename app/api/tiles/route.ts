@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const UPSTREAM =
-  process.env.FUSED_TILE_URL ||
-  "https://udf.ai/fsh_3beqYsRSxdtPrGgmI07yBl/run/tiles";
+const UPSTREAM = "https://udf.ai/fsh_3beqYsRSxdtPrGgmI07yBl/run/tiles";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -19,7 +17,9 @@ export async function GET(req: NextRequest) {
   try {
     const res = await fetch(url, { cache: "force-cache" });
     if (!res.ok) {
-      return new NextResponse(null, { status: res.status });
+      const body = await res.text().catch(() => "");
+      console.error(`Fused ${res.status} for ${url}: ${body}`);
+      return new NextResponse(body || null, { status: res.status });
     }
     const buf = await res.arrayBuffer();
     return new NextResponse(buf, {
