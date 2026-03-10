@@ -186,7 +186,7 @@ export function useCropView() {
 
   // ── Initial map load — fly straight to Austin, TX ──
   const handleMapLoad = useCallback(() => {
-    mapRef.current?.flyTo({ center: [-97.7431, 30.2672], zoom: 11, duration: 1200 });
+    mapRef.current?.flyTo({ center: [-97.58, 30.32], zoom: 11, duration: 1200 });
   }, []);
 
   // ── Build the TileLayer (GeoJSON tiles, nationwide) ──
