@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import Map, { NavigationControl } from "react-map-gl";
-import { MapboxOverlay } from "@deck.gl/mapbox";
+import Map, { NavigationControl, useControl } from "react-map-gl";
+import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { DEFAULT_COUNTY, DEFAULT_STATE } from "@/lib/cropview-data";
@@ -26,6 +26,17 @@ const BASEMAP_OPTIONS = [
 
 const INITIAL_VIEW = { longitude: -95.7, latitude: 39.8, zoom: 4 };
 
+// ── Proper deck.gl + react-map-gl integration via useControl ──
+// This ensures the overlay is always in sync with the map's render loop,
+// including during rotation, pitch, and animations.
+function DeckGLOverlay(props: MapboxOverlayProps) {
+  const overlay = useControl<MapboxOverlay>(
+    () => new MapboxOverlay({ interleaved: true, ...props })
+  );
+  overlay.setProps(props);
+  return null;
+}
+
 function useIsMobile(breakpoint = 640) {
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
@@ -39,58 +50,20 @@ export default function CropViewMapbox() {
   const isMobile = useIsMobile();
   const [basemap, setBasemap] = useState<string>("satellite");
   const [viewState, setViewState] = useState<Record<string, any>>(INITIAL_VIEW);
-  const overlayRef = useRef<MapboxOverlay | null>(null);
   const initializedRef = useRef(false);
 
   const layers = useMemo(() => [cv.buildLayer()], [cv.buildLayer]);
 
-  const layersRef = useRef(layers);
-  layersRef.current = layers;
-
-  // Called every time the Map mounts (initial + after basemap key change)
   const handleLoad = useCallback(() => {
-    const mapInstance = cv.mapRef.current;
-    if (!mapInstance) return;
-    const rawMap = mapInstance.getMap ? mapInstance.getMap() : mapInstance;
-
-    overlayRef.current = new MapboxOverlay({
-      interleaved: true,
-      layers: layersRef.current,
-    });
-    rawMap.addControl(overlayRef.current);
-
-    // Force overlay to pick up the current viewport immediately
-    requestAnimationFrame(() => {
-      rawMap.fire("move");
-      rawMap.triggerRepaint();
-    });
-
-    // Only fly to default county on first load
     if (!initializedRef.current) {
       initializedRef.current = true;
       cv.handleMapLoad();
     }
-  }, [cv.handleMapLoad, cv.mapRef, basemap]);
-
-  // Sync layers to overlay whenever they change
-  useEffect(() => {
-    if (!overlayRef.current) return;
-    overlayRef.current.setProps({ layers });
-
-    const mapInstance = cv.mapRef.current;
-    const rawMap = mapInstance?.getMap ? mapInstance.getMap() : mapInstance;
-    rawMap?.triggerRepaint?.();
-  }, [layers, cv.mapRef]);
+  }, [cv.handleMapLoad]);
 
   const handleMoveEnd = useCallback(() => {
-    // bump() in handleMoveEnd triggers layerVersion change → useEffect syncs layers
     cv.handleMoveEnd();
   }, [cv.handleMoveEnd]);
-
-  // Clear overlay ref when basemap changes (old Map unmounts)
-  useEffect(() => {
-    return () => { overlayRef.current = null; };
-  }, [basemap]);
 
   return (
     <CropViewUI
@@ -112,10 +85,9 @@ export default function CropViewMapbox() {
         onLoad={handleLoad}
         onClick={cv.handleMapClick}
         onMoveEnd={handleMoveEnd}
-        dragRotate={false}
-        touchPitch={false}
         antialias={!isMobile}
       >
+        <DeckGLOverlay layers={layers} />
         <NavigationControl showCompass={false} position="bottom-right" />
       </Map>
     </CropViewUI>
