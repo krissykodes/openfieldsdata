@@ -54,7 +54,7 @@ export default function CropViewMapbox() {
     const rawMap = mapInstance.getMap ? mapInstance.getMap() : mapInstance;
 
     overlayRef.current = new MapboxOverlay({
-      interleaved: false,
+      interleaved: true,
       layers: layersRef.current,
     });
     rawMap.addControl(overlayRef.current);
