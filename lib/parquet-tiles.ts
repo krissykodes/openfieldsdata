@@ -13,7 +13,9 @@
 import { parquetMetadataAsync, parquetReadObjects } from "hyparquet";
 
 // ── Module-level LRU tile cache ────────────────────────────────────────────
-const MAX_CACHE_TILES = 150;
+// Mobile devices have much less RAM — use a smaller cache to avoid OOM crashes.
+const MAX_CACHE_TILES =
+  typeof window !== "undefined" && window.innerWidth < 768 ? 50 : 150;
 const tileCache = new Map<string, any[]>(); // url → features (insertion order = LRU)
 const inflight = new Map<string, Promise<any[] | null>>();
 
