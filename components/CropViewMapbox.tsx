@@ -112,6 +112,8 @@ export default function CropViewMapbox() {
         onLoad={handleLoad}
         onClick={cv.handleMapClick}
         onMoveEnd={handleMoveEnd}
+        dragRotate={false}
+        touchPitch={false}
         antialias={!isMobile}
       >
         <NavigationControl showCompass={false} position="bottom-right" />
