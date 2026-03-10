@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import Map, { NavigationControl, useControl } from "react-map-gl";
-import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
+import dynamic from "next/dynamic";
+const DeckGL = dynamic(() => import("@deck.gl/react"), { ssr: false });
+import Map, { NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { DEFAULT_COUNTY, DEFAULT_STATE } from "@/lib/cropview-data";
@@ -24,30 +25,10 @@ const BASEMAP_OPTIONS = [
   { key: "light", label: "Light" },
 ];
 
-const INITIAL_VIEW = { longitude: -95.7, latitude: 39.8, zoom: 4 };
-
-// ── Proper deck.gl + react-map-gl integration via useControl ──
-// This ensures the overlay is always in sync with the map's render loop,
-// including during rotation, pitch, and animations.
-function DeckGLOverlay(props: MapboxOverlayProps) {
-  const overlay = useControl<MapboxOverlay>(
-    () => new MapboxOverlay({ interleaved: true, ...props })
-  );
-  overlay.setProps(props);
-  return null;
-}
-
-function useIsMobile(breakpoint = 640) {
-  const [mobile, setMobile] = useState(false);
-  useEffect(() => {
-    setMobile(window.innerWidth <= breakpoint);
-  }, [breakpoint]);
-  return mobile;
-}
+const INITIAL_VIEW = { longitude: -95.7, latitude: 39.8, zoom: 4, bearing: 0, pitch: 0 };
 
 export default function CropViewMapbox() {
   const cv = useCropView();
-  const isMobile = useIsMobile();
   const [basemap, setBasemap] = useState<string>("satellite");
   const [viewState, setViewState] = useState<Record<string, any>>(INITIAL_VIEW);
   const initializedRef = useRef(false);
@@ -61,10 +42,6 @@ export default function CropViewMapbox() {
     }
   }, [cv.handleMapLoad]);
 
-  const handleMoveEnd = useCallback(() => {
-    cv.handleMoveEnd();
-  }, [cv.handleMoveEnd]);
-
   return (
     <CropViewUI
       {...cv}
@@ -74,22 +51,31 @@ export default function CropViewMapbox() {
       currentBasemap={basemap}
       setBasemap={setBasemap}
     >
-      <Map
-        key={basemap}
-        ref={cv.mapRef}
-        initialViewState={viewState}
-        onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle={BASEMAPS[basemap] || BASEMAPS.satellite}
-        mapboxAccessToken={MAPBOX_TOKEN}
-        style={{ width: "100%", height: "100%" }}
-        onLoad={handleLoad}
-        onClick={cv.handleMapClick}
-        onMoveEnd={handleMoveEnd}
-        antialias={!isMobile}
+      {/* DeckGL wraps Map — shares viewState so both canvases stay perfectly in sync
+          including rotation, pitch, and animations */}
+      <DeckGL
+        viewState={viewState}
+        controller={false}
+        layers={layers}
+        style={{ position: "absolute", top: "0", left: "0", right: "0", bottom: "0" }}
+        onClick={cv.handleMapClick as any}
       >
-        <DeckGLOverlay layers={layers} />
-        <NavigationControl showCompass={false} position="bottom-right" />
-      </Map>
+        <Map
+          key={basemap}
+          ref={cv.mapRef}
+          {...viewState}
+          onMove={(evt) => {
+            setViewState(evt.viewState);
+            cv.handleMoveEnd();
+          }}
+          mapStyle={BASEMAPS[basemap] || BASEMAPS.satellite}
+          mapboxAccessToken={MAPBOX_TOKEN}
+          style={{ width: "100%", height: "100%" }}
+          onLoad={handleLoad}
+        >
+          <NavigationControl showCompass={false} position="bottom-right" />
+        </Map>
+      </DeckGL>
     </CropViewUI>
   );
 }
