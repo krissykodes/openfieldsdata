@@ -61,7 +61,6 @@ export default function CropViewMapbox() {
       setBasemap={setBasemap}
     >
       <Map
-        key={basemap}
         ref={cv.mapRef}
         initialViewState={viewState}
         onMove={(evt) => setViewState(evt.viewState)}
