@@ -3,8 +3,8 @@
 export const DATA_URL = "/api/data";
 export const TILE_URL = "/api/tiles?z={z}&x={x}&y={y}";
 
-export const DEFAULT_STATE = "Iowa";
-export const DEFAULT_COUNTY = "Lyon";
+export const DEFAULT_STATE = "Texas";
+export const DEFAULT_COUNTY = "Travis";
 export const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023] as const;
 
 export const CROP_NAMES: Record<number, string> = {
