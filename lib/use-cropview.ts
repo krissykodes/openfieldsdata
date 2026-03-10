@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MVTLayer } from "@deck.gl/geo-layers";
+import { GeoJsonLayer } from "@deck.gl/layers";
 import {
-  TILE_URL,
+  DATA_URL,
   YEARS,
-  DEFAULT_STATE,
-  DEFAULT_COUNTY,
   getCropName,
   getCropColor,
   colorValue,
@@ -63,6 +61,18 @@ export function useCropView() {
 
   // UI state
   const [loading, setLoading] = useState(true);
+  // Field data — fetched once on mount
+  const [geodata, setGeodata] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(DATA_URL)
+      .then((r) => r.json())
+      .then((gj) => {
+        setGeodata(gj);
+        setLoading(false);
+      })
+      .catch(console.error);
+  }, []);
   const [year, setYear] = useState<number>(2023);
   const [mode, setMode] = useState<ColorMode>("crop");
   const [opacity, setOpacity] = useState(0.8);
@@ -178,80 +188,66 @@ export function useCropView() {
     [flyToBounds, selectCounty]
   );
 
-  // ── Initial map load (smart loader: waits for moveend + delay, with fallback) ──
-  const handleMapLoad = useCallback(async () => {
-    const st = stateByName[DEFAULT_STATE.toLowerCase()];
-    if (st && DEFAULT_COUNTY) {
-      pickedRef.current = true; // suppress search suggestions on initial load
-      setSelectedStateFips(st.f);
-      setCountyText(DEFAULT_COUNTY);
-      await geocodeAndFlyToCounty(DEFAULT_COUNTY, st.n);
-      // Wait for the camera to settle, then hide loader
-      const map = mapRef.current;
-      if (map) {
-        const onMoveEnd = () => {
-          setTimeout(() => setLoading(false), 600);
-        };
-        map.once("moveend", onMoveEnd);
-      }
-      // Fallback: hide after 4s regardless
-      setTimeout(() => setLoading(false), 4000);
-    } else {
-      setTimeout(() => setLoading(false), 800);
-    }
-  }, [geocodeAndFlyToCounty]);
+  // ── Initial map load — fly straight to Lyon County ──
+  const handleMapLoad = useCallback(() => {
+    // Lyon County, Iowa bounding box
+    flyToBounds([-96.5, 43.2, -95.8, 43.6]);
+  }, [flyToBounds]);
 
-  // ── Build the MVT layer ──
+  // ── Compute county stats whenever geodata or year changes ──
+  useEffect(() => {
+    if (!geodata) return;
+    const cropCol = `CDL${yearRef.current}`;
+    let fields = 0, totalAcres = 0, cornAcres = 0, soyAcres = 0, wheatAcres = 0;
+    for (const ft of geodata.features) {
+      const p = ft.properties;
+      const ac = Number(p.CSBACRES) || 0;
+      fields++;
+      totalAcres += ac;
+      const crop = Number(p[cropCol]) || 0;
+      if (crop === 1) cornAcres += ac;
+      else if (crop === 5) soyAcres += ac;
+      else if (crop === 23 || crop === 24) wheatAcres += ac;
+    }
+    setCountyStats({ fields, totalAcres, cornAcres, soyAcres, wheatAcres });
+  }, [geodata, year]);
+
+  // ── Build the GeoJson layer ──
   const buildLayer = useCallback(() => {
     const col = `CDL${yearRef.current}`;
     const op = opRef.current;
     const ol = olRef.current;
     const m = modeRef.current;
-    const cName = countyRef.current.name;
-    const cFips = countyRef.current.stateFips;
-    const hasCounty = cName !== null;
 
-    // Pre-compute alpha values to avoid Math.round per feature
-    const alphaIn = Math.round(op * 255);
-    const alphaOut = Math.round(op * 255 * 0.25);
-    // Pre-compute default outline alpha
-    const defaultLineAlpha = ol > 0 ? 25 : 0;
-
-    return new MVTLayer({
+    return new GeoJsonLayer({
       id: "csb",
-      data: TILE_URL,
-      minZoom: 7,
-      maxZoom: 14,
+      data: geodata || { type: "FeatureCollection", features: [] },
 
       getFillColor: (f: any) => {
         const p = f.properties;
-        const alpha = hasCounty && !checkInCounty(p, cName, cFips) ? alphaOut : alphaIn;
+        const alpha = Math.round(op * 255);
         let rgb: [number, number, number];
         if (m === "crop") rgb = getCropColor(p[col] || p.CDL2023);
         else if (m === "years") rgb = colorValue(p.CSBYEARS || 1, [1, 8]);
         else rgb = colorValue(p.CSBACRES || 0, [0, 500]);
         _rgba[0] = rgb[0]; _rgba[1] = rgb[1]; _rgba[2] = rgb[2]; _rgba[3] = alpha;
-        return _rgba;
+        return [..._rgba] as [number, number, number, number];
       },
 
       getLineColor: (f: any) => {
-        const p = f.properties;
-        const id = p.CSBID;
+        const id = f.properties?.CSBID;
         if (id && id === hoveredRef.current) return [255, 255, 255, 230];
-        if (checkInCounty(p, cName, cFips)) return [52, 199, 89, 200];
-        if (hasCounty) return [0, 0, 0, 0];
-        return [255, 255, 255, defaultLineAlpha];
+        return ol > 0 ? [255, 255, 255, 25] : [0, 0, 0, 0];
       },
 
       getLineWidth: (f: any) => {
-        const p = f.properties;
-        const id = p.CSBID;
+        const id = f.properties?.CSBID;
         if (id && id === hoveredRef.current) return 3;
-        if (checkInCounty(p, cName, cFips)) return 2.5;
-        return hasCounty ? 0 : ol;
+        return ol;
       },
 
       lineWidthMinPixels: 0.5,
+      lineWidthUnits: "pixels",
       stroked: true,
       filled: true,
       pickable: true,
@@ -273,12 +269,7 @@ export function useCropView() {
             .map((yr) => {
               const c = p[`CDL${yr}`];
               return c != null
-                ? {
-                    year: yr,
-                    code: c,
-                    name: getCropName(c),
-                    color: getCropColor(c),
-                  }
+                ? { year: yr, code: c, name: getCropName(c), color: getCropColor(c) }
                 : null;
             })
             .filter(Boolean) as PopupData["rotation"];
@@ -297,55 +288,13 @@ export function useCropView() {
         }
       },
 
-      onViewportLoad: (tiles: any[]) => {
-        const cn = countyRef.current.name;
-        const cf = countyRef.current.stateFips;
-        if (!cn || !cf) {
-          setCountyStats(null);
-          return;
-        }
-        const cropCol = `CDL${yearRef.current}`;
-        const seen = new Set<string>();
-        let fields = 0, totalAcres = 0, cornAcres = 0, soyAcres = 0, wheatAcres = 0;
-
-        for (let t = 0, tLen = tiles.length; t < tLen; t++) {
-          const content = tiles[t].content;
-          if (!content || !Array.isArray(content)) continue;
-          for (let i = 0, len = content.length; i < len; i++) {
-            const p = content[i].properties;
-            if (!p) continue;
-            // Inline fast-path: check stateFips first (cheap string compare)
-            const sf = p.STATEFIPS;
-            if (sf == null || String(sf) !== cf) continue;
-            const raw = p.CNTY;
-            if (raw == null) continue;
-            const cnVal = String(raw).toUpperCase();
-            if (cnVal !== cn && !(cnVal.endsWith(" COUNTY") && cnVal.slice(0, -7).trimEnd() === cn)) continue;
-            const id = p.CSBID;
-            if (id != null) {
-              const sid = String(id);
-              if (seen.has(sid)) continue;
-              seen.add(sid);
-            }
-            const ac = Number(p.CSBACRES) || 0;
-            fields++;
-            totalAcres += ac;
-            const crop = Number(p[cropCol]) || 0;
-            if (crop === 1) cornAcres += ac;
-            else if (crop === 5) soyAcres += ac;
-            else if (crop === 23 || crop === 24) wheatAcres += ac;
-          }
-        }
-        setCountyStats({ fields, totalAcres, cornAcres, soyAcres, wheatAcres });
-      },
-
       updateTriggers: {
         getFillColor: [layerVersion],
         getLineColor: [layerVersion, hoverVersion],
         getLineWidth: [layerVersion, hoverVersion],
       },
     });
-  }, [layerVersion, hoverVersion, bumpHover]);
+  }, [geodata, layerVersion, hoverVersion, bumpHover]);
 
   // ── Force layer update after programmatic fly animations ──
   const handleMoveEnd = useCallback(() => {
