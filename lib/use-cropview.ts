@@ -184,9 +184,9 @@ export function useCropView() {
     [flyToBounds, selectCounty]
   );
 
-  // ── Initial map load — fly straight to Lyon County ──
+  // ── Initial map load — fly straight to Austin, TX ──
   const handleMapLoad = useCallback(() => {
-    mapRef.current?.flyTo({ center: [-96.15, 43.4], zoom: 11, duration: 1200 });
+    mapRef.current?.flyTo({ center: [-97.58, 30.32], zoom: 11, duration: 1200 });
   }, []);
 
   // ── Build the TileLayer (GeoJSON tiles, nationwide) ──
