@@ -15,6 +15,7 @@ interface BasemapOption { key: string; label: string; }
 interface CropViewUIProps {
   // State
   loading: boolean;
+  tilesLoading: number;
   defaultCounty: string;
   defaultState: string;
   year: number;
@@ -84,7 +85,7 @@ function usePopupPosition(popup: PopupData | null) {
 
 export default function CropViewUI(props: CropViewUIProps) {
   const {
-    loading, defaultCounty, defaultState, year, mode, setMode,
+    loading, tilesLoading, defaultCounty, defaultState, year, mode, setMode,
     opacity, setOpacity, outlines, setOutlines, playing, setPlaying,
     settingsOpen, setSettingsOpen, searchMode, setSearchMode,
     selectedStateFips, countyText, setCountyText, addrText, setAddrText,
@@ -179,12 +180,20 @@ export default function CropViewUI(props: CropViewUIProps) {
       {/* Map (passed as children) */}
       {children}
 
-      {/* Loader */}
+      {/* Fullscreen initial loader (unused with tiles, kept for compat) */}
       {loading && (
         <div className={s.loader}>
           <div className={s.spinner} />
           <div className={s.loaderText}>Loading field boundaries...</div>
           <div className={s.loaderSub}>{defaultCounty} County, {defaultState}</div>
+        </div>
+      )}
+
+      {/* Tile loading indicator — small non-blocking corner badge */}
+      {tilesLoading > 0 && (
+        <div className={s.tileLoader}>
+          <div className={s.tileSpinner} />
+          <span>{tilesLoading} tile{tilesLoading !== 1 ? "s" : ""} loading</span>
         </div>
       )}
 
@@ -373,9 +382,9 @@ export default function CropViewUI(props: CropViewUIProps) {
       {popup && (
         <div className={`${s.popup} ${s.glass}`} style={popupPos.isMobile ? { top: popupPos.top } : { left: popupPos.left, top: popupPos.top }}>
           <div className={s.popHead}>
-            {/* <div>
+            <div>
               <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name} - <span className={s.popYr}>{popup.currentYear} growing season</span></div>
-            </div> */}
+            </div>
           </div>
 
           <div className={s.popRot}>
@@ -399,8 +408,8 @@ export default function CropViewUI(props: CropViewUIProps) {
               <span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} acres</span>
               {popup.csbid && <div className={s.popFid}>{popup.csbid}</div>}
             </div>
-            {/* <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div> */}
-            {/* <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div> */}
+            <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div>
+            <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div>
 
           </div>
 

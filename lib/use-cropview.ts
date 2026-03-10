@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
+import { TileLayer } from "@deck.gl/geo-layers";
+import { fetchParquetTile } from "./parquet-tiles";
 import {
-  DATA_URL,
+  TILE_URL,
   YEARS,
   getCropName,
   getCropColor,
@@ -60,18 +62,12 @@ export function useCropView() {
   const mapRef = useRef<any>(null);
 
   // UI state
-  const [loading, setLoading] = useState(true);
-  // Field data — fetched once on mount
-  const [geodata, setGeodata] = useState<any>(null);
-
-  useEffect(() => {
-    fetch(DATA_URL)
-      .then((r) => r.json())
-      .then((gj) => {
-        setGeodata(gj);
-        setLoading(false);
-      })
-      .catch(console.error);
+  const [loading] = useState(false); // kept for API compat (tiles load progressively)
+  const [tilesLoading, setTilesLoading] = useState(0);
+  const tilesLoadingRef = useRef(0);
+  const onTileDelta = useCallback((d: number) => {
+    tilesLoadingRef.current = Math.max(0, tilesLoadingRef.current + d);
+    setTilesLoading(tilesLoadingRef.current);
   }, []);
   const [year, setYear] = useState<number>(2023);
   const [mode, setMode] = useState<ColorMode>("crop");
@@ -190,111 +186,126 @@ export function useCropView() {
 
   // ── Initial map load — fly straight to Lyon County ──
   const handleMapLoad = useCallback(() => {
-    // Lyon County, Iowa bounding box
-    flyToBounds([-96.5, 43.2, -95.8, 43.6]);
-  }, [flyToBounds]);
+    mapRef.current?.flyTo({ center: [-96.15, 43.4], zoom: 11, duration: 1200 });
+  }, []);
 
-  // ── Compute county stats whenever geodata or year changes ──
-  useEffect(() => {
-    if (!geodata) return;
-    const cropCol = `CDL${yearRef.current}`;
-    let fields = 0, totalAcres = 0, cornAcres = 0, soyAcres = 0, wheatAcres = 0;
-    for (const ft of geodata.features) {
-      const p = ft.properties;
-      const ac = Number(p.CSBACRES) || 0;
-      fields++;
-      totalAcres += ac;
-      const crop = Number(p[cropCol]) || 0;
-      if (crop === 1) cornAcres += ac;
-      else if (crop === 5) soyAcres += ac;
-      else if (crop === 23 || crop === 24) wheatAcres += ac;
-    }
-    setCountyStats({ fields, totalAcres, cornAcres, soyAcres, wheatAcres });
-  }, [geodata, year]);
-
-  // ── Build the GeoJson layer ──
+  // ── Build the TileLayer (GeoJSON tiles, nationwide) ──
   const buildLayer = useCallback(() => {
     const col = `CDL${yearRef.current}`;
     const op = opRef.current;
     const ol = olRef.current;
     const m = modeRef.current;
 
-    return new GeoJsonLayer({
-      id: "csb",
-      data: geodata || { type: "FeatureCollection", features: [] },
+    const getFillColor = (f: any) => {
+      const p = f.properties;
+      const alpha = Math.round(op * 255);
+      let rgb: [number, number, number];
+      if (m === "crop") rgb = getCropColor(p[col] || p.CDL2023);
+      else if (m === "years") rgb = colorValue(p.CSBYEARS || 1, [1, 8]);
+      else rgb = colorValue(p.CSBACRES || 0, [0, 500]);
+      _rgba[0] = rgb[0]; _rgba[1] = rgb[1]; _rgba[2] = rgb[2]; _rgba[3] = alpha;
+      return [..._rgba] as [number, number, number, number];
+    };
 
-      getFillColor: (f: any) => {
-        const p = f.properties;
-        const alpha = Math.round(op * 255);
-        let rgb: [number, number, number];
-        if (m === "crop") rgb = getCropColor(p[col] || p.CDL2023);
-        else if (m === "years") rgb = colorValue(p.CSBYEARS || 1, [1, 8]);
-        else rgb = colorValue(p.CSBACRES || 0, [0, 500]);
-        _rgba[0] = rgb[0]; _rgba[1] = rgb[1]; _rgba[2] = rgb[2]; _rgba[3] = alpha;
-        return [..._rgba] as [number, number, number, number];
-      },
+    const getLineColor = (f: any) => {
+      const id = f.properties?.CSBID;
+      if (id && id === hoveredRef.current) return [255, 255, 255, 230];
+      return ol > 0 ? [255, 255, 255, 25] : [0, 0, 0, 0];
+    };
 
-      getLineColor: (f: any) => {
-        const id = f.properties?.CSBID;
-        if (id && id === hoveredRef.current) return [255, 255, 255, 230];
-        return ol > 0 ? [255, 255, 255, 25] : [0, 0, 0, 0];
-      },
+    const getLineWidth = (f: any) => {
+      const id = f.properties?.CSBID;
+      if (id && id === hoveredRef.current) return 3;
+      return ol;
+    };
 
-      getLineWidth: (f: any) => {
-        const id = f.properties?.CSBID;
-        if (id && id === hoveredRef.current) return 3;
-        return ol;
-      },
+    const onHover = (info: any) => {
+      const nid = info.object?.properties?.CSBID || null;
+      if (nid !== hoveredRef.current) {
+        hoveredRef.current = nid;
+        bumpHover();
 
-      lineWidthMinPixels: 0.5,
-      lineWidthUnits: "pixels",
-      stroked: true,
-      filled: true,
-      pickable: true,
-      autoHighlight: false,
-
-      onHover: (info: any) => {
-        const nid = info.object?.properties?.CSBID || null;
-        if (nid !== hoveredRef.current) {
-          hoveredRef.current = nid;
-          bumpHover();
-
-          if (!info.object) {
-            setPopup(null);
-            return;
-          }
-          const p = info.object.properties;
-          const code = p[`CDL${yearRef.current}`] || p.CDL2023;
-          const rotation = (YEARS as readonly number[])
-            .map((yr) => {
-              const c = p[`CDL${yr}`];
-              return c != null
-                ? { year: yr, code: c, name: getCropName(c), color: getCropColor(c) }
-                : null;
-            })
-            .filter(Boolean) as PopupData["rotation"];
-          setPopup({
-            x: info.x,
-            y: info.y,
-            name: getCropName(code),
-            color: getCropColor(code),
-            acres: p.CSBACRES,
-            county: p.CNTY,
-            stateFips: p.STATEFIPS,
-            csbid: p.CSBID,
-            rotation,
-            currentYear: yearRef.current,
-          });
+        if (!info.object) {
+          setPopup(null);
+          return;
         }
+        const p = info.object.properties;
+        const code = p[`CDL${yearRef.current}`] || p.CDL2023;
+        const rotation = (YEARS as readonly number[])
+          .map((yr) => {
+            const c = p[`CDL${yr}`];
+            return c != null
+              ? { year: yr, code: c, name: getCropName(c), color: getCropColor(c) }
+              : null;
+          })
+          .filter(Boolean) as PopupData["rotation"];
+        setPopup({
+          x: info.x,
+          y: info.y,
+          name: getCropName(code),
+          color: getCropColor(code),
+          acres: p.CSBACRES,
+          county: p.CNTY,
+          stateFips: p.STATEFIPS,
+          csbid: p.CSBID,
+          rotation,
+          currentYear: yearRef.current,
+        });
+      }
+    };
+
+    return new TileLayer({
+      id: "csb-tiles",
+      data: TILE_URL,
+      minZoom: 7,
+      maxZoom: 14,
+      tileSize: 512,   // 512px tiles = 4× fewer requests than 256px
+      zoomOffset: -1,  // request tiles 1 zoom lower → each tile covers 4× more area
+      maxRequests: 6,  // limit concurrent fetches
+      pickable: true,
+
+      // Hover lives on the TileLayer — sublayer onHover is never called by deck.gl
+      onHover,
+
+      // Changing these triggers renderSubLayers to re-run for all loaded tiles
+      // without evicting the tile cache (no re-fetch).
+      updateTriggers: {
+        renderSubLayers: [layerVersion, hoverVersion],
       },
 
-      updateTriggers: {
-        getFillColor: [layerVersion],
-        getLineColor: [layerVersion, hoverVersion],
-        getLineWidth: [layerVersion, hoverVersion],
+      getTileData: async ({ index: { z, x, y }, signal }: any) => {
+        const url = TILE_URL
+          .replace("{z}", String(z))
+          .replace("{x}", String(x))
+          .replace("{y}", String(y));
+        return fetchParquetTile(url, signal, onTileDelta);
+      },
+
+      renderSubLayers: (props: any) => {
+        const { data } = props;
+        // data is an array of GeoJSON features from parquet decoder
+        if (!data || !data.length) return null;
+        return new GeoJsonLayer({
+          ...props,
+          data,
+          getFillColor,
+          getLineColor,
+          getLineWidth,
+          lineWidthMinPixels: 0.5,
+          lineWidthUnits: "pixels",
+          stroked: true,
+          filled: true,
+          pickable: true,
+          autoHighlight: false,
+          updateTriggers: {
+            getFillColor: [layerVersion],
+            getLineColor: [layerVersion, hoverVersion],
+            getLineWidth: [layerVersion, hoverVersion],
+          },
+        });
       },
     });
-  }, [geodata, layerVersion, hoverVersion, bumpHover]);
+  }, [layerVersion, hoverVersion, bumpHover, onTileDelta]);
 
   // ── Force layer update after programmatic fly animations ──
   const handleMoveEnd = useCallback(() => {
@@ -524,6 +535,7 @@ export function useCropView() {
   return {
     mapRef,
     loading,
+    tilesLoading,
     year,
     mode,
     setMode,

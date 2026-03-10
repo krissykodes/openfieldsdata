@@ -12,17 +12,17 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Missing z/x/y", { status: 400 });
   }
 
-  const url = `${UPSTREAM}/${z}/${x}/${y}?dtype_out_vector=mvt`;
+  const url = `${UPSTREAM}/${z}/${x}/${y}?dtype_out_vector=parquet`;
 
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { cache: "force-cache" });
     if (!res.ok) {
       return new NextResponse(null, { status: res.status });
     }
-    const buffer = await res.arrayBuffer();
-    return new NextResponse(buffer, {
+    const buf = await res.arrayBuffer();
+    return new NextResponse(buf, {
       headers: {
-        "Content-Type": "application/vnd.mapbox-vector-tile",
+        "Content-Type": "application/octet-stream",
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
       },
     });

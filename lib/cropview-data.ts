@@ -1,6 +1,7 @@
 // lib/cropview-data.ts
 
 export const DATA_URL = "/api/data";
+export const TILE_URL = "/api/tiles?z={z}&x={x}&y={y}";
 
 export const DEFAULT_STATE = "Iowa";
 export const DEFAULT_COUNTY = "Lyon";
