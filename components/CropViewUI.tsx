@@ -197,94 +197,51 @@ export default function CropViewUI(props: CropViewUIProps) {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search — address bar only */}
       <div className={s.search}>
-        <div className={`${s.modeToggle} ${s.glass}`}>
-          <button className={`${s.modeBtn} ${searchMode === "location" ? s.on : ""}`} onClick={() => setSearchMode("location")}>📍 Location</button>
-          <button className={`${s.modeBtn} ${searchMode === "address" ? s.on : ""}`} onClick={() => setSearchMode("address")}>🔎 Address</button>
-        </div>
-
-        {searchMode === "location" ? (
-          <div className={s.locRow}>
-            <select className={s.select} value={selectedStateFips} onChange={(e) => handleStateChange(e.target.value)}>
-              <option value="">State</option>
-              {STATES.map((st) => <option key={st.f} value={st.f}>{st.n}</option>)}
-            </select>
-            <div className={s.inputWrap} ref={countyWrapRef}>
-              <input
-                className={s.countyInput}
-                value={countyText}
-                onChange={(e) => setCountyText(e.target.value)}
-                onKeyDown={handleCountyKeyDown}
-                placeholder={selectedStateFips ? `County in ${stateMap[selectedStateFips]?.n}...` : "County..."}
-                disabled={!selectedStateFips}
-              />
-              {countySugs.length > 0 && (
-                <div className={`${s.sug} ${s.glass}`}>
-                  {countySugs.map((ft: any, i: number) => (
+        <div className={s.locRow}>
+          <div className={s.inputWrap} style={{ flex: 1 }} ref={addrWrapRef}>
+            <input
+              className={s.addrInput}
+              value={addrText}
+              onChange={(e) => setAddrText(e.target.value)}
+              onKeyDown={handleAddrKeyDown}
+              placeholder="Address, place, or lat, lng..."
+            />
+            {addrSugs.length > 0 && (
+              <div className={`${s.sug} ${s.glass} ${s.sugWide}`}>
+                {addrSugs.map((ft: any, i: number) => {
+                  if (ft.isCoord) return (
                     <div
-                      key={ft.id || ft.place_name}
-                      className={`${s.sugItem} ${i === countyIdx ? s.sugActive : ""}`}
-                      onClick={() => pickCounty(ft)}
+                      key="__coords__"
+                      className={`${s.sugItem} ${i === addrIdx ? s.sugActive : ""}`}
+                      onClick={() => pickAddr(ft)}
                     >
-                      <div>{ft.text}</div>
+                      <div>📍 Go to coordinates</div>
                       <div className={s.sugSub}>{ft.place_name}</div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {(selectedStateFips || countyText) && (
-              <button className={s.clearBtn} onClick={clearSearch} title="Clear selection">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
+                  );
+                  const pts = ft.place_name.split(",");
+                  return (
+                    <div
+                      key={ft.id || ft.place_name}
+                      className={`${s.sugItem} ${i === addrIdx ? s.sugActive : ""}`}
+                      onClick={() => pickAddr(ft)}
+                    >
+                      <div>{pts[0]}</div>
+                      {pts.length > 1 && <div className={s.sugSub}>{pts.slice(1).join(",").trim()}</div>}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        ) : (
-          <div className={s.locRow}>
-            <div className={s.inputWrap} style={{ flex: 1 }} ref={addrWrapRef}>
-              <input
-                className={s.addrInput}
-                value={addrText}
-                onChange={(e) => setAddrText(e.target.value)}
-                onKeyDown={handleAddrKeyDown}
-                placeholder="Address, place, or lat, lng..."
-              />
-              {addrSugs.length > 0 && (
-                <div className={`${s.sug} ${s.glass} ${s.sugWide}`}>
-                  {addrSugs.map((ft: any, i: number) => {
-                    if (ft.isCoord) return (
-                      <div
-                        key="__coords__"
-                        className={`${s.sugItem} ${i === addrIdx ? s.sugActive : ""}`}
-                        onClick={() => pickAddr(ft)}
-                      >
-                        <div>📍 Go to coordinates</div>
-                        <div className={s.sugSub}>{ft.place_name}</div>
-                      </div>
-                    );
-                    const pts = ft.place_name.split(",");
-                    return (
-                      <div
-                        key={ft.id || ft.place_name}
-                        className={`${s.sugItem} ${i === addrIdx ? s.sugActive : ""}`}
-                        onClick={() => pickAddr(ft)}
-                      >
-                        <div>{pts[0]}</div>
-                        {pts.length > 1 && <div className={s.sugSub}>{pts.slice(1).join(",").trim()}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {addrText && (
-              <button className={s.clearBtn} onClick={clearSearch} title="Clear search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
-            )}
-          </div>
-        )}
+          {addrText && (
+            <button className={s.clearBtn} onClick={clearSearch} title="Clear search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* County Badge */}
