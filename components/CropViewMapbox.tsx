@@ -23,7 +23,7 @@ const BASEMAP_OPTIONS = [
   { key: "light", label: "Light" },
 ];
 
-const INITIAL_VIEW = { longitude: -95.7, latitude: 39.8, zoom: 4 };
+const INITIAL_VIEW = { longitude: -97.7431, latitude: 30.2672, zoom: 10 };
 
 // Renders deck.gl layers inside Mapbox's render loop via useControl.
 // interleaved: false → separate canvas on top, pointer-events: none so
