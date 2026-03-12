@@ -23,14 +23,12 @@ const BASEMAP_OPTIONS = [
   { key: "light", label: "Light" },
 ];
 
-const INITIAL_VIEW = { longitude: -98.5, latitude: 39.8, zoom: 3 };
-
-// Renders deck.gl layers inside Mapbox's render loop via useControl.
-// interleaved: false → separate canvas on top, pointer-events: none so
-// all gestures (pan, zoom, rotate) pass through to Mapbox unobstructed.
+// Renders deck.gl layers directly into Mapbox's GL context via useControl.
+// interleaved: true → renders in Mapbox's render loop, ensuring perfect
+// position sync during zoom/pan animations (no overlay drift).
 function DeckGLOverlay({ layers }: Pick<MapboxOverlayProps, "layers">) {
   const overlay = useControl<MapboxOverlay>(
-    () => new MapboxOverlay({ interleaved: false, layers })
+    () => new MapboxOverlay({ interleaved: true, layers })
   );
   overlay.setProps({ layers });
   return null;
@@ -39,7 +37,10 @@ function DeckGLOverlay({ layers }: Pick<MapboxOverlayProps, "layers">) {
 export default function CropViewMapbox() {
   const cv = useCropView();
   const [basemap, setBasemap] = useState<string>("satellite");
-  const [viewState, setViewState] = useState<Record<string, any>>(INITIAL_VIEW);
+  const [viewState, setViewState] = useState<Record<string, any>>(() => {
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    return { longitude: -98.5, latitude: isMobile ? 37 : 39.8, zoom: isMobile ? 2.3 : 3 };
+  });
   const initializedRef = useRef(false);
 
   const layers = useMemo(() => [cv.buildLayer()], [cv.buildLayer]);
