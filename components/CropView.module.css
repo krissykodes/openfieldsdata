@@ -94,10 +94,35 @@
 	to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+.calcOverlay {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: rgba(0, 0, 0, 0.8);
+	backdrop-filter: blur(16px);
+	border-radius: 28px;
+	padding: 14px 28px 14px 20px;
+	font-size: 15px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.9);
+	pointer-events: none;
+	white-space: nowrap;
+	animation: cvCalcIn 0.3s ease;
+}
+@keyframes cvCalcIn {
+	from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+	to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
 /* Search */
 .search {
 	position: absolute;
-	top: 16px;
+	top: 35px;
 	right: 16px;
 	left: auto;
 	z-index: 10;
@@ -189,12 +214,12 @@
 	width: 220px;
 }
 .addrInput {
-	width: 220px;
+	width: 132px;
 }
 .addrInput:focus {
 	outline: none;
 	border-color: rgba(255, 255, 255, 0.2);
-	width: 300px;
+	width: 180px;
 }
 .countyInput::placeholder,
 .addrInput::placeholder {
@@ -614,9 +639,10 @@
 	padding: 12px 16px 16px;
 }
 .popRotLabel {
-	font-size: 16px;
+	font-size: 12px;
 	font-weight: 600;
-	letter-spacing: 0.8px;
+	letter-spacing: 0.6px;
+	white-space: nowrap;
 	text-transform: uppercase;
 	color: rgba(255, 255, 255, 0.94);
 	margin-bottom: 5px;
@@ -673,9 +699,9 @@
 /* Hero instruction text — shown before first click, small glass box at top */
 .heroText {
 	position: absolute;
-	top: 16px;
-	left: 60px;
-	right: 260px;
+	top: 35px;
+	left: 65px;
+	right: 160px;
 	z-index: 10;
 	font-size: 13px;
 	font-weight: 500;
@@ -691,21 +717,16 @@
 	white-space: nowrap;
 }
 
-/* Year display — bottom right, clickable to toggle play/pause */
+/* Year display — bottom right, year number + playback buttons */
 .yearDisplay {
 	position: absolute;
 	bottom: 28px;
 	right: 16px;
 	z-index: 10;
 	padding: 14px 28px 12px;
-	cursor: pointer;
 	user-select: none;
 	text-align: center;
-	transition: background 0.2s, border-color 0.2s;
 	border-radius: 16px;
-}
-.yearDisplay:hover {
-	background: rgba(44, 44, 46, 0.85) !important;
 }
 .yearNum {
 	font-size: 54px;
@@ -714,19 +735,68 @@
 	letter-spacing: -2px;
 	line-height: 1;
 }
-.yearHint {
-	font-size: 11px;
-	font-weight: 500;
-	color: rgba(255, 255, 255, 0.4);
-	margin-top: 4px;
-	letter-spacing: 0.4px;
+
+/* Playback controls — 3 circular buttons (rewind, play/pause, forward) */
+.playbackControls {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 10px;
 }
-.yearPlaying {
-	border-color: rgba(52, 199, 89, 0.4) !important;
+.playbackBtn {
+	width: 31px;
+	height: 31px;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.75);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.15s;
+	flex-shrink: 0;
+	padding: 0;
 }
-.yearPlaying .yearHint {
-	color: #34c759;
+.playbackBtn:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.18);
+	color: rgba(255, 255, 255, 0.95);
+	border-color: rgba(255, 255, 255, 0.2);
 }
+.playbackBtn:disabled {
+	opacity: 0.2;
+	cursor: not-allowed;
+}
+.playbackBtn svg {
+	width: 12px;
+	height: 12px;
+}
+/* Central play/pause — larger */
+.playbackBtnMain {
+	width: 37px;
+	height: 37px;
+	border-color: rgba(255, 255, 255, 0.18);
+}
+.playbackBtnMain svg {
+	width: 15px;
+	height: 15px;
+}
+/* Active (playing) state */
+.playbackBtnActive {
+	background: #34c759;
+	border-color: #34c759;
+	color: #000;
+}
+.playbackBtnActive:hover:not(:disabled) {
+	background: #2da44e;
+	border-color: #2da44e;
+	color: #000;
+}
+
+/* Hero text — desktop/mobile variants */
+.heroDesktop { display: inline; }
+.heroMobile { display: none; }
 
 /* Out-of-bounds toast */
 .oobToast {
@@ -836,9 +906,14 @@
 		height: 44px;
 	}
 	.search {
+		top: auto;
+		bottom: 16px;
 		left: 10px;
-		right: 58px;
-		top: 10px;
+		right: 10px;
+	}
+	.sug {
+		top: auto;
+		bottom: calc(100% + 4px);
 	}
 	.locRow {
 		flex-wrap: wrap;
@@ -881,7 +956,48 @@
 		min-width: 100%;
 	}
 	.legend {
-		display: none;
+		bottom: 72px;
+		left: 10px;
+		padding: 8px 10px;
+		max-width: calc(100vw - 20px);
+		border-radius: 12px;
+	}
+	.lg {
+		font-size: 9px;
+		gap: 5px;
+	}
+	.lgDot {
+		width: 5px;
+		height: 5px;
+	}
+	.heroDesktop { display: none; }
+	.heroMobile { display: inline; }
+	.heroText {
+		left: 16px;
+		right: 16px;
+		top: 50%;
+		transform: translate(0, -50%);
+		font-size: 16px;
+		white-space: normal;
+		padding: 16px 24px;
+		border-radius: 14px;
+	}
+	.yearDisplay {
+		bottom: auto;
+		top: 16px;
+		right: 16px;
+		padding: 10px 20px 8px;
+	}
+	.yearNum {
+		font-size: 36px;
+	}
+	.playbackBtn {
+		width: 34px;
+		height: 34px;
+	}
+	.playbackBtnMain {
+		width: 41px;
+		height: 41px;
 	}
 	.badge {
 		display: none !important;

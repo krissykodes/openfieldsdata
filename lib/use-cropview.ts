@@ -95,10 +95,14 @@ export function useCropView() {
   const [countyStats, setCountyStats] = useState<CountyStats | null>(null);
   const [viewportCropStats, setViewportCropStats] = useState<ViewportCropStat[]>([]);
   const [hasClicked, setHasClicked] = useState(false);
+  const [calculating, setCalculating] = useState(false);
   const [outOfBoundsMsg, setOutOfBoundsMsg] = useState<string | null>(null);
 
   // Suppress search after picking a suggestion
   const pickedRef = useRef(false);
+
+  // Track when deck.gl handled a pick so Mapbox onClick doesn't clear it
+  const deckPickedRef = useRef(false);
 
   // Mutable refs (deck callbacks capture stale closures otherwise)
   const hoveredRef = useRef<string | null>(null);
@@ -209,7 +213,7 @@ export function useCropView() {
     // Map starts at INITIAL_VIEW; no fly needed.
   }, []);
 
-  // ── Click-to-explore: validate CONUS, then fly + start animation ──
+  // ── Click-to-explore: validate CONUS, show calculating, then fly ──
   const handleInitialClick = useCallback((lngLat: { lng: number; lat: number }) => {
     const { lng, lat } = lngLat;
     if (!isInConus(lng, lat)) {
@@ -219,9 +223,15 @@ export function useCropView() {
       return;
     }
     setHasClicked(true);
+    setCalculating(true);
     setYear(2016);
-    waitingForTilesRef.current = true;
-    mapRef.current?.flyTo({ center: [lng, lat], zoom: 10, duration: 1400 });
+
+    // Stay zoomed out briefly to show "calculating" state, then fly in
+    setTimeout(() => {
+      setCalculating(false);
+      waitingForTilesRef.current = true;
+      mapRef.current?.flyTo({ center: [lng, lat], zoom: 10, duration: 2000 });
+    }, 2000);
   }, []);
 
   // ── Reusable: compute viewport crop stats from loaded tiles ──
@@ -353,7 +363,12 @@ export function useCropView() {
       if (nid !== hoveredRef.current) showFeaturePopup(info);
     };
 
-    const onClick = mobile ? (info: any) => showFeaturePopup(info) : undefined;
+    const onClick = (info: any) => {
+      if (info.object) {
+        deckPickedRef.current = true;
+        showFeaturePopup(info);
+      }
+    };
 
     return new TileLayer({
       id: "csb-tiles",
@@ -424,8 +439,12 @@ export function useCropView() {
     bump();
   }, [bump]);
 
-  // ── Map click handler ──
+  // ── Map click handler — skip if deck.gl already handled the pick ──
   const handleMapClick = useCallback(() => {
+    if (deckPickedRef.current) {
+      deckPickedRef.current = false;
+      return;
+    }
     setPopup(null);
   }, []);
 
@@ -444,7 +463,7 @@ export function useCropView() {
         queueMicrotask(() => setPlaying(false));
         return prev;
       });
-    }, 5000);
+    }, 3000);
     return () => clearInterval(id);
   }, [playing]);
 
@@ -637,6 +656,20 @@ export function useCropView() {
     [showYearToast]
   );
 
+  // ── Step year (rewind / fast-forward) ──
+  const stepYear = useCallback(
+    (direction: -1 | 1) => {
+      setYear((prev) => {
+        const i = (YEARS as readonly number[]).indexOf(prev);
+        const next = i + direction;
+        if (next < 0) return YEARS[0];
+        if (next >= YEARS.length) return YEARS[YEARS.length - 1];
+        return YEARS[next];
+      });
+    },
+    []
+  );
+
   // ── Clear search / county selection ──
   const clearSearch = useCallback(() => {
     setSelectedStateFips("");
@@ -682,6 +715,7 @@ export function useCropView() {
     countyStats,
     viewportCropStats,
     hasClicked,
+    calculating,
     handleInitialClick,
     outOfBoundsMsg,
     yearPct,
@@ -696,6 +730,7 @@ export function useCropView() {
     handleTrackMouseDown,
     handleTrackTouchStart,
     pickYear,
+    stepYear,
     clearSearch,
     clearCountySugs,
     clearAddrSugs,

@@ -45,6 +45,7 @@ interface CropViewUIProps {
   countyStats: CountyStats | null;
   viewportCropStats: ViewportCropStat[];
   hasClicked: boolean;
+  calculating: boolean;
   handleInitialClick: (lngLat: { lng: number; lat: number }) => void;
   outOfBoundsMsg: string | null;
   yearPct: number;
@@ -60,6 +61,7 @@ interface CropViewUIProps {
   handleTrackMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleTrackTouchStart: (e: React.TouchEvent<HTMLDivElement>) => void;
   pickYear: (yr: number) => void;
+  stepYear: (direction: -1 | 1) => void;
   clearSearch: () => void;
   clearCountySugs: () => void;
   clearAddrSugs: () => void;
@@ -94,12 +96,12 @@ export default function CropViewUI(props: CropViewUIProps) {
     settingsOpen, setSettingsOpen, searchMode, setSearchMode,
     selectedStateFips, countyText, setCountyText, addrText, setAddrText,
     countySugs, addrSugs, badge, popup, setPopup, yearToast, countyStats, viewportCropStats,
-    hasClicked, outOfBoundsMsg,
+    hasClicked, calculating, outOfBoundsMsg,
     yearPct,
     basemapOptions, currentBasemap, setBasemap,
     handleStateChange, pickCounty, pickAddr, handleTrackClick,
     handleTrackMouseDown, handleTrackTouchStart,
-    pickYear, clearSearch, clearCountySugs, clearAddrSugs,
+    pickYear, stepYear, clearSearch, clearCountySugs, clearAddrSugs,
     children,
   } = props;
 
@@ -221,7 +223,16 @@ export default function CropViewUI(props: CropViewUIProps) {
       {/* Hero instruction — shown before first click */}
       {!hasClicked && (
         <div className={s.heroText}>
-          Click anywhere to explore crop rotation history
+          <span className={s.heroDesktop}>Click anywhere to explore open fields and crop rotation patterns</span>
+          <span className={s.heroMobile}>Click anywhere to explore open fields and crop rotation patterns</span>
+        </div>
+      )}
+
+      {/* Calculating overlay — shown after click, before zoom */}
+      {calculating && (
+        <div className={s.calcOverlay}>
+          <div className={s.tileSpinner} />
+          <span>Locating fields...</span>
         </div>
       )}
 
@@ -239,7 +250,7 @@ export default function CropViewUI(props: CropViewUIProps) {
               value={addrText}
               onChange={(e) => setAddrText(e.target.value)}
               onKeyDown={handleAddrKeyDown}
-              placeholder={hasClicked ? "🔍 Search another location" : "🔍 Search any location"}
+              placeholder={hasClicked ? "🔍 Search location" : "🔍 Search location"}
             />
             {addrSugs.length > 0 && (
               <div className={`${s.sug} ${s.glass} ${s.sugWide}`}>
@@ -282,20 +293,44 @@ export default function CropViewUI(props: CropViewUIProps) {
 
       {/* Gear + Settings — hidden for now */}
 
-      {/* Year Display — big clickable number, bottom-right, shown after first click */}
-      {hasClicked && (
-        <div
-          className={`${s.yearDisplay} ${s.glass} ${playing ? s.yearPlaying : ""}`}
-          onClick={() => {
-            if (!playing && year === YEARS[YEARS.length - 1]) {
-              pickYear(YEARS[0]);
-            }
-            setPlaying(!playing);
-          }}
-          title={playing ? "Click to pause" : "Click to play"}
-        >
+      {/* Year Display — year number + 3 playback buttons, shown once fields load */}
+      {hasClicked && viewportCropStats.length > 0 && (
+        <div className={`${s.yearDisplay} ${s.glass}`}>
           <div className={s.yearNum}>{year}</div>
-          <div className={s.yearHint}>{playing ? "⏸ pause" : "▶ play"}</div>
+          <div className={s.playbackControls}>
+            <button
+              className={s.playbackBtn}
+              onClick={() => { setPlaying(false); stepYear(-1); }}
+              disabled={year === YEARS[0]}
+              title="Previous year"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+            </button>
+            <button
+              className={`${s.playbackBtn} ${s.playbackBtnMain} ${playing ? s.playbackBtnActive : ""}`}
+              onClick={() => {
+                if (!playing && year === YEARS[YEARS.length - 1]) {
+                  pickYear(YEARS[0]);
+                }
+                setPlaying(!playing);
+              }}
+              title={playing ? "Pause" : "Play"}
+            >
+              {playing ? (
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+              )}
+            </button>
+            <button
+              className={s.playbackBtn}
+              onClick={() => { setPlaying(false); stepYear(1); }}
+              disabled={year === YEARS[YEARS.length - 1]}
+              title="Next year"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -322,22 +357,14 @@ export default function CropViewUI(props: CropViewUIProps) {
         </div>
       )}
 
-      {/* Zoom warning — shown when user has clicked but zoomed out too far */}
-      {hasClicked && tilesLoading === 0 && viewportCropStats.length === 0 && (
-        <div className={s.zoomWarning}>🔍 Zoom in to see fields</div>
-      )}
+      {/* Zoom warning removed */}
 
       {/* Popup */}
       {popup && (
         <div className={`${s.popup} ${s.glass}`} style={popupPos.isMobile ? { top: popupPos.top } : { left: popupPos.left, top: popupPos.top }}>
-          <div className={s.popHead}>
-            <div>
-              <div className={s.popName} style={{ color: `rgb(${popup.color.join(",")})` }}>{popup.name} - <span className={s.popYr}>{popup.currentYear} growing season</span></div>
-            </div>
-          </div>
 
           <div className={s.popRot}>
-            <div className={s.popRotLabel}>Rotation History</div>
+            <div className={s.popRotLabel}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} Acre Field Rotation History</div>
             <div className={s.rotTl}>
               {popup.rotation.map((r) => (
                 <div key={r.year} className={`${s.rotC} ${r.year === popup.currentYear ? s.now : ""}`}>
@@ -352,11 +379,6 @@ export default function CropViewUI(props: CropViewUIProps) {
           <div className={s.popDiv} />
 
           <div className={s.popBody}>
-            <div className={s.popRow}>
-              {/* <span className={s.popK}>Size</span> */}
-              <span className={s.popV}>{popup.acres != null ? popup.acres.toFixed(1) : "—"} acres</span>
-              {popup.csbid && <div className={s.popFid}>{popup.csbid}</div>}
-            </div>
             <div className={s.popRow}><span className={s.popK}>County</span><span className={s.popV}>{popup.county || "—"}</span></div>
             <div className={s.popRow}><span className={s.popK}>State</span><span className={s.popV}>{stateMap[popup.stateFips]?.n || "—"}</span></div>
 
