@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState, useCallback } from "react";
-import { STATES, LEGEND_ITEMS, YEARS, stateMap, getCropShort, type PopupData, type CountyStats } from "@/lib/cropview-data";
+import { STATES, LEGEND_ITEMS, YEARS, stateMap, getCropShort, type PopupData, type CountyStats, type ViewportCropStat } from "@/lib/cropview-data";
 import { type ColorMode } from "@/lib/use-cropview";
 import s from "./CropView.module.css";
 
@@ -43,6 +43,10 @@ interface CropViewUIProps {
   setPopup: (v: PopupData | null) => void;
   yearToast: boolean;
   countyStats: CountyStats | null;
+  viewportCropStats: ViewportCropStat[];
+  hasClicked: boolean;
+  handleInitialClick: (lngLat: { lng: number; lat: number }) => void;
+  outOfBoundsMsg: string | null;
   yearPct: number;
   // Basemaps
   basemapOptions: BasemapOption[];
@@ -89,7 +93,9 @@ export default function CropViewUI(props: CropViewUIProps) {
     opacity, setOpacity, outlines, setOutlines, playing, setPlaying,
     settingsOpen, setSettingsOpen, searchMode, setSearchMode,
     selectedStateFips, countyText, setCountyText, addrText, setAddrText,
-    countySugs, addrSugs, badge, popup, setPopup, yearToast, countyStats, yearPct,
+    countySugs, addrSugs, badge, popup, setPopup, yearToast, countyStats, viewportCropStats,
+    hasClicked, outOfBoundsMsg,
+    yearPct,
     basemapOptions, currentBasemap, setBasemap,
     handleStateChange, pickCounty, pickAddr, handleTrackClick,
     handleTrackMouseDown, handleTrackTouchStart,
@@ -98,6 +104,21 @@ export default function CropViewUI(props: CropViewUIProps) {
   } = props;
 
   const popupPos = usePopupPosition(popup);
+
+  // ── Tile loading phase — "Seeds planting..." → "Fields growing..." ──
+  const [tilePhase, setTilePhase] = useState(0);
+  const tilePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (tilesLoading > 0) {
+      setTilePhase(0);
+      if (tilePhaseTimerRef.current) clearTimeout(tilePhaseTimerRef.current);
+      tilePhaseTimerRef.current = setTimeout(() => setTilePhase(1), 3000);
+    } else {
+      setTilePhase(0);
+      if (tilePhaseTimerRef.current) clearTimeout(tilePhaseTimerRef.current);
+    }
+    return () => { if (tilePhaseTimerRef.current) clearTimeout(tilePhaseTimerRef.current); };
+  }, [tilesLoading]);
 
   // ── Keyboard navigation for suggestions ──
   const [countyIdx, setCountyIdx] = useState(-1);
@@ -189,12 +210,24 @@ export default function CropViewUI(props: CropViewUIProps) {
         </div>
       )}
 
-      {/* Tile loading indicator — small non-blocking corner badge */}
+      {/* Tile loading indicator — fun progressive messages */}
       {tilesLoading > 0 && (
         <div className={s.tileLoader}>
           <div className={s.tileSpinner} />
-          <span>{tilesLoading} tile{tilesLoading !== 1 ? "s" : ""} loading</span>
+          <span>{tilePhase === 0 ? "Seeds planting..." : "Fields growing..."}</span>
         </div>
+      )}
+
+      {/* Hero instruction — shown before first click */}
+      {!hasClicked && (
+        <div className={s.heroText}>
+          Click anywhere to explore crop rotation history
+        </div>
+      )}
+
+      {/* Out-of-bounds toast */}
+      {outOfBoundsMsg && (
+        <div className={s.oobToast}>{outOfBoundsMsg}</div>
       )}
 
       {/* Search — address bar only */}
@@ -206,7 +239,7 @@ export default function CropViewUI(props: CropViewUIProps) {
               value={addrText}
               onChange={(e) => setAddrText(e.target.value)}
               onKeyDown={handleAddrKeyDown}
-              placeholder="Address, place, or lat, lng..."
+              placeholder={hasClicked ? "🔍 Search another location" : "🔍 Search any location"}
             />
             {addrSugs.length > 0 && (
               <div className={`${s.sug} ${s.glass} ${s.sugWide}`}>
@@ -247,72 +280,24 @@ export default function CropViewUI(props: CropViewUIProps) {
       {/* County Badge */}
       {/* {badge && <div className={s.badge}>{badge}</div>} */}
 
-      {/* Gear */}
-      <button ref={gearRef} className={s.gear} onClick={() => setSettingsOpen(!settingsOpen)}><GearIcon /></button>
+      {/* Gear + Settings — hidden for now */}
 
-      {/* Settings Panel */}
-      {settingsOpen && (
-        <div ref={settingsRef} className={`${s.settings} ${s.glass}`}>
-          <div className={s.sGroup}>
-            <div className={s.sLabel}>Color By</div>
-            <div className={s.sRow}>
-              {(["crop", "acreage", "years"] as ColorMode[]).map((m) => (
-                <button key={m} className={`${s.chip} ${mode === m ? s.on : ""}`} onClick={() => setMode(m)}>
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={s.sGroup}>
-            <div className={s.sLabel}>Basemap</div>
-            <div className={s.sRow}>
-              {basemapOptions.map((b) => (
-                <button key={b.key} className={`${s.chip} ${currentBasemap === b.key ? s.on : ""}`} onClick={() => setBasemap(b.key)}>
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={s.sGroup}>
-            <div className={s.sLabel}>Opacity</div>
-            <input type="range" className={s.slider} min={10} max={100} value={opacity * 100} step={5} onChange={(e) => setOpacity(+e.target.value / 100)} />
-          </div>
-          <div className={s.sGroup}>
-            <div className={s.sLabel}>Outlines</div>
-            <input type="range" className={s.slider} min={0} max={3} value={outlines} step={0.5} onChange={(e) => setOutlines(+e.target.value)} />
-          </div>
+      {/* Year Display — big clickable number, bottom-right, shown after first click */}
+      {hasClicked && (
+        <div
+          className={`${s.yearDisplay} ${s.glass} ${playing ? s.yearPlaying : ""}`}
+          onClick={() => {
+            if (!playing && year === YEARS[YEARS.length - 1]) {
+              pickYear(YEARS[0]);
+            }
+            setPlaying(!playing);
+          }}
+          title={playing ? "Click to pause" : "Click to play"}
+        >
+          <div className={s.yearNum}>{year}</div>
+          <div className={s.yearHint}>{playing ? "⏸ pause" : "▶ play"}</div>
         </div>
       )}
-
-      {/* Year Bar */}
-      <div className={`${s.yearbar} ${s.glass}`}>
-        <div className={s.yrNum}>{year}</div>
-        <div className={s.yrWrap}>
-          <div
-            className={s.yrTrack}
-            onClick={handleTrackClick}
-            onMouseDown={handleTrackMouseDown}
-            onTouchStart={handleTrackTouchStart}
-          >
-            <div className={s.yrFill} style={{ width: `${yearPct}%` }} />
-            <div className={s.yrThumb} style={{ left: `${yearPct}%` }} />
-          </div>
-          <div className={s.yrTicks}>
-            {YEARS.map((yr) => (
-              <span key={yr} className={`${s.yrTick} ${yr === year ? s.on : ""}`} onClick={() => pickYear(yr)}>
-                &apos;{String(yr).slice(2)}
-              </span>
-            ))}
-          </div>
-        </div>
-        <button className={`${s.play} ${playing ? s.on : ""}`} onClick={() => setPlaying(!playing)}>
-          {playing ? (
-            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-          )}
-        </button>
-      </div>
 
       {/* County Stats */}
       {countyStats && (
@@ -325,15 +310,22 @@ export default function CropViewUI(props: CropViewUIProps) {
         </div>
       )}
 
-      {/* Legend */}
-      <div className={`${s.legend} ${s.glass}`}>
-        {LEGEND_ITEMS.map((item) => (
-          <div key={item.label} className={s.lg}>
-            <div className={s.lgDot} style={{ background: item.color }} />
-            {item.label}
-          </div>
-        ))}
-      </div>
+      {/* Dynamic viewport crop summary — hidden when no tiles loaded or before first click */}
+      {hasClicked && viewportCropStats.length > 0 && (
+        <div className={`${s.legend} ${s.glass}`}>
+          {viewportCropStats.map((stat) => (
+            <div key={stat.code} className={s.lg}>
+              <div className={s.lgDot} style={{ background: `rgb(${stat.color.join(",")})` }} />
+              {stat.name}: {Math.round(stat.totalAcres).toLocaleString()} acres
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Zoom warning — shown when user has clicked but zoomed out too far */}
+      {hasClicked && tilesLoading === 0 && viewportCropStats.length === 0 && (
+        <div className={s.zoomWarning}>🔍 Zoom in to see fields</div>
+      )}
 
       {/* Popup */}
       {popup && (

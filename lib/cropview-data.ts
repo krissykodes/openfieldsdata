@@ -887,6 +887,13 @@ export async function geocode(query: string, types?: string, limit = 1) {
   }
 }
 
+export interface ViewportCropStat {
+  code: number;
+  name: string;
+  color: [number, number, number];
+  totalAcres: number;
+}
+
 export interface CountyStats {
   fields: number;
   totalAcres: number;

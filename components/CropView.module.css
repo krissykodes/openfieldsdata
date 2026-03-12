@@ -98,7 +98,8 @@
 .search {
 	position: absolute;
 	top: 16px;
-	left: 16px;
+	right: 16px;
+	left: auto;
 	z-index: 10;
 	display: flex;
 	flex-direction: column;
@@ -188,12 +189,12 @@
 	width: 220px;
 }
 .addrInput {
-	width: 320px;
+	width: 220px;
 }
 .addrInput:focus {
 	outline: none;
 	border-color: rgba(255, 255, 255, 0.2);
-	width: 380px;
+	width: 300px;
 }
 .countyInput::placeholder,
 .addrInput::placeholder {
@@ -669,6 +670,105 @@
 	transform: translate(-50%, -50%) scale(1.15);
 }
 
+/* Hero instruction text — shown before first click, small glass box at top */
+.heroText {
+	position: absolute;
+	top: 16px;
+	left: 60px;
+	right: 260px;
+	z-index: 10;
+	font-size: 13px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.85);
+	text-align: center;
+	background: rgba(28, 28, 30, 0.72);
+	backdrop-filter: blur(40px) saturate(1.8);
+	-webkit-backdrop-filter: blur(40px) saturate(1.8);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 10px;
+	padding: 8px 18px;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* Year display — bottom right, clickable to toggle play/pause */
+.yearDisplay {
+	position: absolute;
+	bottom: 28px;
+	right: 16px;
+	z-index: 10;
+	padding: 14px 28px 12px;
+	cursor: pointer;
+	user-select: none;
+	text-align: center;
+	transition: background 0.2s, border-color 0.2s;
+	border-radius: 16px;
+}
+.yearDisplay:hover {
+	background: rgba(44, 44, 46, 0.85) !important;
+}
+.yearNum {
+	font-size: 54px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -2px;
+	line-height: 1;
+}
+.yearHint {
+	font-size: 11px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.4);
+	margin-top: 4px;
+	letter-spacing: 0.4px;
+}
+.yearPlaying {
+	border-color: rgba(52, 199, 89, 0.4) !important;
+}
+.yearPlaying .yearHint {
+	color: #34c759;
+}
+
+/* Out-of-bounds toast */
+.oobToast {
+	position: absolute;
+	bottom: 110px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 30;
+	padding: 12px 24px;
+	background: rgba(28, 28, 30, 0.92);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(255, 80, 80, 0.35);
+	border-radius: 12px;
+	color: rgba(255, 140, 140, 0.95);
+	font-size: 13px;
+	font-weight: 500;
+	text-align: center;
+	max-width: 440px;
+	white-space: nowrap;
+	pointer-events: none;
+	animation: cvFadeIn 0.2s ease;
+}
+
+/* Zoom warning — shown when zoomed out too far after first click */
+.zoomWarning {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 10;
+	padding: 10px 22px;
+	background: rgba(28, 28, 30, 0.78);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 24px;
+	color: rgba(255, 255, 255, 0.65);
+	font-size: 13px;
+	font-weight: 500;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
 /* MapLibre controls — match dark glass theme */
 .root :global(.maplibregl-ctrl-group) {
 	background: rgba(28, 28, 30, 0.72) !important;
@@ -686,6 +786,30 @@
 }
 .root :global(.maplibregl-ctrl-group button .maplibregl-ctrl-icon) {
 	filter: invert(1);
+}
+
+/* Mapbox GL controls — match dark glass theme */
+.root :global(.mapboxgl-ctrl-group) {
+	background: rgba(28, 28, 30, 0.72) !important;
+	backdrop-filter: blur(40px) !important;
+	-webkit-backdrop-filter: blur(40px) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+}
+.root :global(.mapboxgl-ctrl-group button + button) {
+	border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.root :global(.mapboxgl-ctrl-group button:hover) {
+	background: rgba(255, 255, 255, 0.06) !important;
+}
+.root :global(.mapboxgl-ctrl-icon) {
+	filter: invert(1);
+}
+/* Offset nav control to align with hero text and search bar */
+.root :global(.mapboxgl-ctrl-top-left) {
+	top: 16px;
+	left: 16px;
 }
 
 @media (max-width: 640px) {
@@ -713,7 +837,7 @@
 	}
 	.search {
 		left: 10px;
-		right: 52px;
+		right: 58px;
 		top: 10px;
 	}
 	.locRow {

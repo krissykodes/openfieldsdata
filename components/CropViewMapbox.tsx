@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import Map, { NavigationControl, useControl } from "react-map-gl";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -23,7 +23,7 @@ const BASEMAP_OPTIONS = [
   { key: "light", label: "Light" },
 ];
 
-const INITIAL_VIEW = { longitude: -97.7431, latitude: 30.2672, zoom: 8 };
+const INITIAL_VIEW = { longitude: -98.5, latitude: 39.8, zoom: 3 };
 
 // Renders deck.gl layers inside Mapbox's render loop via useControl.
 // interleaved: false → separate canvas on top, pointer-events: none so
@@ -68,11 +68,17 @@ export default function CropViewMapbox() {
         mapboxAccessToken={MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
         onLoad={handleLoad}
-        onClick={cv.handleMapClick}
+        onClick={(evt) => {
+          if (!cv.hasClicked) {
+            cv.handleInitialClick(evt.lngLat);
+          } else {
+            cv.handleMapClick();
+          }
+        }}
         onMoveEnd={cv.handleMoveEnd}
       >
         <DeckGLOverlay layers={layers} />
-        <NavigationControl showCompass={false} position="bottom-right" />
+        <NavigationControl showCompass={false} position="top-left" />
       </Map>
     </CropViewUI>
   );

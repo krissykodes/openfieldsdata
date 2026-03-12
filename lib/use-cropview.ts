@@ -16,6 +16,7 @@ import {
   parseCoords,
   type PopupData,
   type CountyStats,
+  type ViewportCropStat,
 } from "./cropview-data";
 
 export type ColorMode = "crop" | "acreage" | "years";
@@ -43,6 +44,11 @@ function checkInCounty(
     return cn.slice(0, -7).trimEnd() === countyName;
   }
   return false;
+}
+
+/** Contiguous US bounding box check */
+function isInConus(lng: number, lat: number): boolean {
+  return lng >= -125 && lng <= -66.5 && lat >= 24.4 && lat <= 49.5;
 }
 
 /** Reusable color array to avoid allocations in accessors */
@@ -76,7 +82,7 @@ export function useCropView() {
   const [playing, setPlaying] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchMode, setSearchMode] = useState<"location" | "address">(
-    "location"
+    "address"
   );
   const [selectedStateFips, setSelectedStateFips] = useState("");
   const [countyText, setCountyText] = useState("");
@@ -87,6 +93,9 @@ export function useCropView() {
   const [popup, setPopup] = useState<PopupData | null>(null);
   const [yearToast, setYearToast] = useState(false);
   const [countyStats, setCountyStats] = useState<CountyStats | null>(null);
+  const [viewportCropStats, setViewportCropStats] = useState<ViewportCropStat[]>([]);
+  const [hasClicked, setHasClicked] = useState(false);
+  const [outOfBoundsMsg, setOutOfBoundsMsg] = useState<string | null>(null);
 
   // Suppress search after picking a suggestion
   const pickedRef = useRef(false);
@@ -124,6 +133,15 @@ export function useCropView() {
 
   // Toast timeout ref for cleanup
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounce ref for viewport crop stats
+  const vpStatsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Out-of-bounds message auto-dismiss ref
+  const outOfBoundsMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Wait-for-tiles: defer autoplay start until initial tiles finish loading
+  const waitingForTilesRef = useRef(false);
+  const prevTilesLoadingRef = useRef(0);
+  // Store loaded tiles for recomputing stats on year change
+  const loadedTilesRef = useRef<any[]>([]);
 
   const showYearToast = useCallback(() => {
     setYearToast(true);
@@ -131,10 +149,12 @@ export function useCropView() {
     toastTimerRef.current = setTimeout(() => setYearToast(false), 2500);
   }, []);
 
-  // Cleanup toast timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (vpStatsDebounceRef.current) clearTimeout(vpStatsDebounceRef.current);
+      if (outOfBoundsMsgTimerRef.current) clearTimeout(outOfBoundsMsgTimerRef.current);
     };
   }, []);
 
@@ -186,8 +206,76 @@ export function useCropView() {
 
   // ── Initial map load — fly straight to Austin, TX ──
   const handleMapLoad = useCallback(() => {
-    mapRef.current?.flyTo({ center: [-97.58, 30.32], zoom: 11, duration: 1200 });
+    // Map starts at INITIAL_VIEW; no fly needed.
   }, []);
+
+  // ── Click-to-explore: validate CONUS, then fly + start animation ──
+  const handleInitialClick = useCallback((lngLat: { lng: number; lat: number }) => {
+    const { lng, lat } = lngLat;
+    if (!isInConus(lng, lat)) {
+      setOutOfBoundsMsg("Sorry! Can only trace from points in the contiguous United States.");
+      if (outOfBoundsMsgTimerRef.current) clearTimeout(outOfBoundsMsgTimerRef.current);
+      outOfBoundsMsgTimerRef.current = setTimeout(() => setOutOfBoundsMsg(null), 4000);
+      return;
+    }
+    setHasClicked(true);
+    setYear(2016);
+    waitingForTilesRef.current = true;
+    mapRef.current?.flyTo({ center: [lng, lat], zoom: 10, duration: 1400 });
+  }, []);
+
+  // ── Reusable: compute viewport crop stats from loaded tiles ──
+  const computeViewportStats = useCallback((tiles: any[]) => {
+    const col = `CDL${yearRef.current}`;
+    const cropMap = new Map<number, number>();
+    const seen = new Set<string>();
+
+    for (const tile of tiles) {
+      const data = tile.data ?? tile;
+      if (!data || !Array.isArray(data)) continue;
+      for (let i = 0, len = data.length; i < len; i++) {
+        const p = data[i].properties;
+        if (!p) continue;
+        const csbid = p.CSBID;
+        if (csbid) {
+          const sid = String(csbid);
+          if (seen.has(sid)) continue;
+          seen.add(sid);
+        }
+        const cropCode = Number(p[col] || p.CDL2023) || 0;
+        const acres = Number(p.CSBACRES) || 0;
+        cropMap.set(cropCode, (cropMap.get(cropCode) || 0) + acres);
+      }
+    }
+
+    const sorted = Array.from(cropMap.entries())
+      .map(([code, acres]) => ({
+        code,
+        name: getCropName(code),
+        color: getCropColor(code),
+        totalAcres: acres,
+      }))
+      .sort((a, b) => b.totalAcres - a.totalAcres)
+      .slice(0, 10);
+
+    setViewportCropStats(sorted);
+  }, []);
+
+  // ── Recompute legend stats when year changes ──
+  useEffect(() => {
+    if (loadedTilesRef.current.length > 0) {
+      computeViewportStats(loadedTilesRef.current);
+    }
+  }, [year, computeViewportStats]);
+
+  // ── Start autoplay once initial tiles finish loading ──
+  useEffect(() => {
+    if (prevTilesLoadingRef.current > 0 && tilesLoading === 0 && waitingForTilesRef.current) {
+      waitingForTilesRef.current = false;
+      setPlaying(true);
+    }
+    prevTilesLoadingRef.current = tilesLoading;
+  }, [tilesLoading]);
 
   // ── Build the TileLayer (GeoJSON tiles, nationwide) ──
   const buildLayer = useCallback(() => {
@@ -270,7 +358,7 @@ export function useCropView() {
     return new TileLayer({
       id: "csb-tiles",
       data: TILE_URL,
-      minZoom: mobile ? 9 : 7,
+      minZoom: 6,
       maxZoom: 14,
       tileSize: 512,   // 512px tiles = 4× fewer requests than 256px
       zoomOffset: -1,  // request tiles 1 zoom lower → each tile covers 4× more area
@@ -285,6 +373,16 @@ export function useCropView() {
       // without evicting the tile cache (no re-fetch).
       updateTriggers: {
         renderSubLayers: [layerVersion, hoverVersion],
+      },
+
+      // Compute dynamic crop acreage summary from visible tiles
+      onViewportLoad: (tiles: any[]) => {
+        loadedTilesRef.current = tiles;
+        if (vpStatsDebounceRef.current) clearTimeout(vpStatsDebounceRef.current);
+        vpStatsDebounceRef.current = setTimeout(() => {
+          vpStatsDebounceRef.current = null;
+          computeViewportStats(tiles);
+        }, 300);
       },
 
       getTileData: async ({ index: { z, x, y }, signal }: any) => {
@@ -331,15 +429,22 @@ export function useCropView() {
     setPopup(null);
   }, []);
 
-  // ── Autoplay ──
+  // ── Autoplay — auto-pause at last year (2023), skip when tiles loading ──
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => {
+      // Don't advance while tiles are still loading
+      if (tilesLoadingRef.current > 0) return;
       setYear((prev) => {
         const i = (YEARS as readonly number[]).indexOf(prev);
-        return i < YEARS.length - 1 ? YEARS[i + 1] : YEARS[0];
+        if (i < YEARS.length - 1) {
+          return YEARS[i + 1];
+        }
+        // Reached last year — stop playing
+        queueMicrotask(() => setPlaying(false));
+        return prev;
       });
-    }, 1200);
+    }, 5000);
     return () => clearInterval(id);
   }, [playing]);
 
@@ -575,6 +680,10 @@ export function useCropView() {
     setPopup,
     yearToast,
     countyStats,
+    viewportCropStats,
+    hasClicked,
+    handleInitialClick,
+    outOfBoundsMsg,
     yearPct,
     buildLayer,
     handleMapLoad,
