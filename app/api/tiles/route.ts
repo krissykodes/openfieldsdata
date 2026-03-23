@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const UPSTREAM = "https://udf.ai/fsh_3beqYsRSxdtPrGgmI07yBl/run/tiles";
+const UPSTREAM = "https://unstable.udf.ai/fc_59PJvbplXqxf9onoUG2fL3/udf_1/run/tiles";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
